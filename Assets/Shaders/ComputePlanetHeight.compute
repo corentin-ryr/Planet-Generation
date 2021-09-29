@@ -1,0 +1,41 @@
+﻿// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+
+// struct Crater {
+//     float3 center;
+//     float radius;
+// }
+
+RWStructuredBuffer<float3> vertices;
+// RWStructuredBuffer<Crater> craters;
+uint numVertices;
+// float rimWidth;
+// float rimSteepness;
+// float floorHeight;
+// float smoothness;
+float testValue;
+
+[numthreads(512, 1, 1)]
+void CSMain (uint id : SV_DispatchThreadID)
+{
+    if (id >= numVertices) { return; }
+    float3 vertexPos = vertices[id];
+    float craterHeight = 0;
+
+    vertices[id] = vertices[id] * (1 + sin(vertexPos.y * testValue) * 0.05);
+
+    // for (int i = 0; i < numCraters; i++) {
+    //     float x = length(vertexPos - craters[i].center) / craters[i].radius;
+
+    //     float cavity = x * x - 1;
+    //     float rimX = min(x - 1 - rimWidth, 0);
+    //     float rim = rimSteepness * rimX * rimX;
+
+    //     float craterShape = smoothMax(cavity, floorHeight, smoothness);
+    //     craterShape = smoothMin(craterShape, rim, smoothness);
+    //     craterHeight += craterShape * craters[i].radius;
+    // }
+
+    // vertices[i] *= 1 + craterHeight;
+
+}

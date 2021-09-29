@@ -1,0 +1,19 @@
+Base path: '/home/corentin/Unity/Hub/Editor/2019.3.0f3/Editor/Data', plugins path '/home/corentin/Unity/Hub/Editor/2019.3.0f3/Editor/Data/PlaybackEngines'
+Cmd: initializeCompiler
+Cmd: compileSnippet
+  api=15 type=0 insize=1602 outsize=18076 kw=UNITY_PASS_FORWARDBASE DIRECTIONAL SHADOWS_SCREEN LIGHTPROBE_SH pd=UNITY_ENABLE_REFLECTION_BUFFERS UNITY_USE_DITHER_MASK_FOR_ALPHABLENDED_SHADOWS UNITY_PBS_USE_BRDF1 UNITY_SPECCUBE_BOX_PROJECTION UNITY_SPECCUBE_BLENDING UNITY_ENABLE_DETAIL_NORMALMAP SHADER_API_DESKTOP UNITY_COLORSPACE_GAMMA UNITY_LIGHT_PROBE_PROXY_VOLUME UNITY_LIGHTMAP_FULL_HDR ok=1
+Cmd: compileComputeKernel
+  error: 2 plat 18 at ComputePlanetHeight.compute(15): syntax error: unexpected token ':'
+  api=18 insize=493 outsize=0 ok=0
+Cmd: compileComputeKernel
+  error: 2 plat 15 at ComputePlanetHeight.compute(16): l-value specifies const object
+  api=15 insize=515 outsize=0 ok=0
+Cmd: compileComputeKernel
+  error: 2 plat 18 at ComputePlanetHeight.compute(16): l-value specifies const object
+  api=18 insize=539 outsize=0 ok=0
+Cmd: compileComputeKernel
+  error: 2 plat 18 at ComputePlanetHeight.compute(18): undeclared identifier 'numCraters'
+  api=18 insize=989 outsize=0 ok=0
+Cmd: compileComputeKernel
+  error: 2 plat 18 at ComputePlanetHeight.compute(9): syntax error: unexpected token 'RWStructuredBuffer'
+  api=18 insize=1109 outsize=0 ok=0
