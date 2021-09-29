@@ -33,8 +33,6 @@ namespace Geometry
 
     public struct TriangleIndices
     {
-        public static NoDuplicatesList<Edge> edges;
-
         public int v1;
         public int v2;
         public int v3;
@@ -43,15 +41,11 @@ namespace Geometry
             this.v1 = v1;
             this.v2 = v2;
             this.v3 = v3;
-
-            edges.Add(new Edge(v1, v2));
-            edges.Add(new Edge(v2, v3));
-            edges.Add(new Edge(v3, v1));
         }
 
-        public TriangleIndices(Vector3 v3){
-            TriangleIndices(v3.x, v3.y, v3.z);
-        }
+        // public TriangleIndices( v3){
+        //     this.TriangleIndices(v3.x, v3.y, v3.z);
+        // }
 
 
     }

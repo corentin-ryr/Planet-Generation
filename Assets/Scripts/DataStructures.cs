@@ -25,14 +25,29 @@ public class FacesAndEdgesList : List<TriangleIndices>
 
     public new void Add(int v1, int v2, int v3)
     {
-        if (!Contains(item))
-            base.Add(item);
-            edges.Add(new Edge(v1, v2));
-            edges.Add(new Edge(v2, v3));
-            edges.Add(new Edge(v3, v1));
+        this.Add(new TriangleIndices(v1, v2, v3));
+
     }
-    public new void Add(TriangleIndices triangle) {
-        this.Add(triangle.v1, triangle.v2, triangle.v3);
+    public new void Add(TriangleIndices triangle)
+    {
+        if (!Contains(triangle))
+        {
+            base.Add(triangle);
+            edges.Add(new Edge(triangle.v1, triangle.v2));
+            edges.Add(new Edge(triangle.v2, triangle.v3));
+            edges.Add(new Edge(triangle.v3, triangle.v1));
+        }
+    }
+
+    public new void Clear()
+    {
+        base.Clear();
+        edges.Clear();
+    }
+
+    public NoDuplicatesList<Edge> getEdges()
+    {
+        return edges;
     }
 
 

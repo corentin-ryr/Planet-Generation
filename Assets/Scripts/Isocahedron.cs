@@ -17,6 +17,7 @@ public class Isocahedron : MonoBehaviour
     //Parameters
     public float radius;
     public int nbSubdivision = 1;
+    public int nbIteration = 1;
     public float testValue = 1f;
     public bool GPU;
 
@@ -26,8 +27,8 @@ public class Isocahedron : MonoBehaviour
 
     //Elements of the unity mesh
     private List<Vector3> vertices = new List<Vector3>();
-    private List<TriangleIndices> faces = new List<TriangleIndices>();
-    private NoDuplicatesList<Edge> edges = new NoDuplicatesList<Edge>();
+    private FacesAndEdgesList faces = new FacesAndEdgesList();
+    private NoDuplicatesList<Edge> edges;
     private MeshFilter meshFilter;
     private MeshRenderer meshRenderer;
 
@@ -46,39 +47,31 @@ public class Isocahedron : MonoBehaviour
 
     public void createSphere()
     {
+        edges = faces.getEdges();
         meshFilter = gameObject.AddComponent(typeof(MeshFilter)) as MeshFilter;
         meshRenderer = gameObject.AddComponent(typeof(MeshRenderer)) as MeshRenderer;
-        TriangleIndices.edges = edges;
 
         createVertices(); // Creates only the points (vertices)
         triangulateVertices(); // Create the faces, aka the triangles between the points
 
         if (GPU)
         {
-            refineSphereGPU(true); // Subdivide every face by adding new points and triangulating them
-            projectPoints(); // Multiply the magnitude of every points to have a bigger planet
-
-            // TEST
-            refineSphereGPU(true);
-            projectPoints();
-            // refineSphereGPU();
-            // projectPoints();
+            for (int i = 0; i < nbIteration; i++)
+            {
+                refineSphereGPU(); // Subdivide every face by adding new points and triangulating them
+                // projectPoints(); // Multiply the magnitude of every points to have a bigger planet
+            }
         }
         else
         {
-            refineSphere(); // Subdivide every face by adding new points and triangulating them
-            projectPoints(); // Multiply the magnitude of every points to have a bigger planet
-
-            // TEST
-            refineSphere();
-            projectPoints();
-            refineSphere();
-            projectPoints();
+            for (int i = 0; i < nbIteration; i++)
+            {
+                refineSphere(); // Subdivide every face by adding new points and triangulating them
+                projectPoints(); // Multiply the magnitude of every points to have a bigger planet
+            }
         }
 
-
         generateMesh(vertices, faces); // Pass the vertices and triangles to the mesh to render it
-
     }
 
     void Update()
@@ -91,7 +84,7 @@ public class Isocahedron : MonoBehaviour
 
     #region Mesh generation
 
-    private void generateMesh(List<Vector3> vertices, List<TriangleIndices> faces)
+    private void generateMesh(List<Vector3> vertices, FacesAndEdgesList faces)
     {
         // Create the actual Unity mesh object
         Mesh mesh = new Mesh();
@@ -171,9 +164,8 @@ public class Isocahedron : MonoBehaviour
         int time0 = Environment.TickCount;
         middlePointIndexCache = new ExtendedDictionary<int, int[]>();
 
-
         // refine triangles
-        var faces2 = new List<TriangleIndices>();
+        var faces2 = new FacesAndEdgesList();
         foreach (var tri in faces) // We refine by adding nbSubdivision vertices to each side of each face
         {
             // Create the aditional vertices on the sides
@@ -208,11 +200,10 @@ public class Isocahedron : MonoBehaviour
     {
         int time0 = Environment.TickCount;
 
-        // Send the data to the Compute Shader ==============================
         int kernelSubdivide = computeShaderSubdivideEdges.FindKernel("SubdivideEdges");
         int kernelTriangulate = computeShaderSubdivideEdges.FindKernel("CreateFaces");
 
-
+        // Send the buffers to the Compute Shader ==============================
         int verticesBufferLength = vertices.Count + (nbSubdivision - 1) * edges.Count + faces.Count * (nbSubdivision - 2) * (nbSubdivision - 1) / 2;
         ComputeBuffer verticesBuffer = new ComputeBuffer(verticesBufferLength, sizeof(float) * 3);
         Vector3[] verticesArray = vertices.ToArray();
@@ -249,13 +240,14 @@ public class Isocahedron : MonoBehaviour
         trianglesBuffer.SetData(trianglesArray);
         computeShaderSubdivideEdges.SetBuffer(kernelTriangulate, "triangles", trianglesBuffer);
 
+        // Set the int and float values =======================================
         computeShaderSubdivideEdges.SetInt("nbVertices", vertices.Count);
         computeShaderSubdivideEdges.SetInt("nbEdges", edges.Count);
         computeShaderSubdivideEdges.SetInt("nbFaces", faces.Count);
         computeShaderSubdivideEdges.SetInt("nbSubdivision", nbSubdivision);
 
 
-        // Launch the computation ================================
+        // Launch the computation =============================================
         int groups = Mathf.CeilToInt(edges.Count / 64f);
         computeShaderSubdivideEdges.Dispatch(kernelSubdivide, groups, 1, 1);
 
@@ -271,12 +263,9 @@ public class Isocahedron : MonoBehaviour
         edges.Clear();
         foreach (var item in trianglesArray)
         {
-            faces.Add(new TriangleIndices(item));
+            faces.Add(item);
         }
-        // faces = trianglesArray.ToList<TriangleIndices>();
-
-        edgesBuffer.GetData(edgesArray);
-        edges = new NoDuplicatesList<Edge>(edgesArray);
+        edges = faces.getEdges();
 
         if (verbose)
         {
@@ -286,14 +275,6 @@ public class Isocahedron : MonoBehaviour
             Debug.Log(edges.Count);
             Debug.Log(faces.Count);
         }
-
-
-        // Recreate the dictionary from the 2 arrays (Actually not usefull)
-        // keysBuffer.GetData(keysArray);
-        // cacheBuffer.GetData(cacheArray);
-
-        // int[][] valueArray = Make2DArray(cacheArray, keysArray.Length, nbSubdivision + 1);
-        // middlePointIndexCache = new ExtendedDictionary<int, int[]>(keysArray, valueArray);
 
         // Free the data on the GPU
         verticesBuffer.Dispose();
@@ -448,7 +429,7 @@ public class Isocahedron : MonoBehaviour
             }
 
             Gizmos.color = Color.yellow;
-            Gizmos.DrawSphere(vertices[vertices.Count - 1], 0.06f);
+            Gizmos.DrawSphere(vertices[0], 0.06f);
         }
 
     }

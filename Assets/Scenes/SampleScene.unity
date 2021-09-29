@@ -154,6 +154,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   radius: 1
   nbSubdivision: 2
+  nbIteration: 1
   testValue: 1
   GPU: 1
   computeShader: {fileID: 7200000, guid: 12d160a84020fd061bd5c0d926e5b895, type: 3}
