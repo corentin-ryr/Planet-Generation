@@ -7,3 +7,4 @@ There is a lot of different ways to make a sphere in a 3D engine, the issue with
 I focussed here on building the sphere with a different method that distributes the points more evenly on the sphere. I created an icosahedron and then subdivided each of its edges by an arbitrary integer and triangulated the faces in more smaller faces (figure \ref{icosahedron})
 
 ![Subdivision of an icosahedron \label{icosahedron}](./Images/Icosahedron_subdivision.png)
+*Subdivision of an icosahedron \ref{icosahedron}*
