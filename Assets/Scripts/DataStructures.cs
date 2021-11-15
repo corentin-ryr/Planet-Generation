@@ -37,6 +37,10 @@ public class FacesAndEdgesList : List<TriangleIndices>
             edges.Add(new Edge(triangle.v2, triangle.v3));
             edges.Add(new Edge(triangle.v3, triangle.v1));
         }
+        else
+        {
+            // Debug.Log("Already contains");
+        }
     }
 
     public new void Clear()

@@ -16,8 +16,7 @@ public class Isocahedron : MonoBehaviour
     #region Variables
     //Parameters
     public float radius;
-    public int nbSubdivision = 1;
-    public int nbIteration = 1;
+    public int[] subdivisionSequence = { 2, 3 };
     public float testValue = 1f;
     public bool GPU;
 
@@ -38,6 +37,9 @@ public class Isocahedron : MonoBehaviour
     // Variable to store the craters data
     private Crater[] craters;
 
+    //Debug variables
+    int faceNumberDebug = 10;
+
     #endregion
 
     void Start()
@@ -56,17 +58,17 @@ public class Isocahedron : MonoBehaviour
 
         if (GPU)
         {
-            for (int i = 0; i < nbIteration; i++)
+            for (int i = 0; i < subdivisionSequence.Length; i++)
             {
-                refineSphereGPU(); // Subdivide every face by adding new points and triangulating them
+                refineSphereGPU(subdivisionSequence[i]); // Subdivide every face by adding new points and triangulating them
                 // projectPoints(); // Multiply the magnitude of every points to have a bigger planet
             }
         }
         else
         {
-            for (int i = 0; i < nbIteration; i++)
+            for (int i = 0; i < subdivisionSequence.Length; i++)
             {
-                refineSphere(); // Subdivide every face by adding new points and triangulating them
+                refineSphere(subdivisionSequence[i]); // Subdivide every face by adding new points and triangulating them
                 projectPoints(); // Multiply the magnitude of every points to have a bigger planet
             }
         }
@@ -159,7 +161,7 @@ public class Isocahedron : MonoBehaviour
         faces.Add(new TriangleIndices(9, 8, 1));
     }
 
-    private void refineSphere()
+    private void refineSphere(int nbSubdivision)
     {
         int time0 = Environment.TickCount;
         middlePointIndexCache = new ExtendedDictionary<int, int[]>();
@@ -196,7 +198,7 @@ public class Isocahedron : MonoBehaviour
         Debug.Log("Time to execute the compute shader " + (int)(Environment.TickCount - time0));
     }
 
-    private void refineSphereGPU(bool verbose = false)
+    private void refineSphereGPU(int nbSubdivision, bool verbose = false)
     {
         int time0 = Environment.TickCount;
 
@@ -230,6 +232,8 @@ public class Isocahedron : MonoBehaviour
         computeShaderSubdivideEdges.SetBuffer(kernelSubdivide, "cache", cacheBuffer);
         computeShaderSubdivideEdges.SetBuffer(kernelTriangulate, "cache", cacheBuffer);
 
+
+        // Debug.Log(faces.Count * nbSubdivision * nbSubdivision);
         ComputeBuffer trianglesBuffer = new ComputeBuffer(faces.Count * nbSubdivision * nbSubdivision, sizeof(int) * 3);
         TriangleIndices[] trianglesArray = new TriangleIndices[faces.Count * nbSubdivision * nbSubdivision];
         for (int i = 0; i < trianglesArray.Length; i++)
@@ -245,6 +249,7 @@ public class Isocahedron : MonoBehaviour
         computeShaderSubdivideEdges.SetInt("nbEdges", edges.Count);
         computeShaderSubdivideEdges.SetInt("nbFaces", faces.Count);
         computeShaderSubdivideEdges.SetInt("nbSubdivision", nbSubdivision);
+        computeShaderSubdivideEdges.SetFloat("radius", radius);
 
 
         // Launch the computation =============================================
@@ -269,8 +274,7 @@ public class Isocahedron : MonoBehaviour
 
         if (verbose)
         {
-            int test = 1;
-            // Debug.Log(faces[faces.Count - test].v1 + "  " + faces[faces.Count - test].v2 + "  " + faces[faces.Count - test].v3);
+            Debug.Log(faces[faceNumberDebug].v1 + "  " + faces[faceNumberDebug].v2 + "  " + faces[faceNumberDebug].v3);
             Debug.Log(vertices.Count);
             Debug.Log(edges.Count);
             Debug.Log(faces.Count);
@@ -417,22 +421,27 @@ public class Isocahedron : MonoBehaviour
 
     #region Gizmos
 
-    void OnDrawGizmos()
-    {
-        if (vertices.Count != 0)
-        {
-            Gizmos.color = Color.gray;
+    // void OnDrawGizmos()
+    // {
+    //     if (vertices.Count != 0)
+    //     {
+    //         Gizmos.color = Color.gray;
 
-            foreach (var vertex in vertices)
-            {
-                Gizmos.DrawSphere(vertex, 0.05f);
-            }
+    //         foreach (var vertex in vertices)
+    //         {
+    //             Gizmos.DrawSphere(vertex, 0.05f);
+    //         }
 
-            Gizmos.color = Color.yellow;
-            Gizmos.DrawSphere(vertices[0], 0.06f);
-        }
+    //         Gizmos.color = Color.yellow;
+    //         Gizmos.DrawSphere(vertices[faces[faceNumberDebug].v1], 0.1f);
+    //         Gizmos.color = Color.green;
+    //         Gizmos.DrawSphere(vertices[faces[faceNumberDebug].v2], 0.1f);
+    //         Gizmos.color = Color.green;
+    //         Gizmos.DrawSphere(vertices[faces[faceNumberDebug].v3], 0.1f);
 
-    }
+    //     }
+
+    // }
 
     #endregion
 

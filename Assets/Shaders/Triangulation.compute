@@ -1,7 +1,7 @@
 ﻿// Each #kernel tells which function to compile; you can have many kernels
 #pragma kernel SubdivideEdges
 #pragma kernel CreateFaces
-// #pragma kernel FindIndexInCache
+
 
 // Create a RenderTexture with enableRandomWrite flag and set it
 // with cs.SetTexture
@@ -15,6 +15,7 @@ uint nbVertices; // 12 (val initial)
 uint nbEdges; // 30 (val initial)
 uint nbFaces; // 20 (val initial)
 uint nbSubdivision;
+float radius; //Radius of the sphere
 
 
 // Takes the position in the cache of the two points we want to find the subdivision. Returns the position in the cache of the beginning of that sequence.
@@ -26,7 +27,7 @@ int FindIndexInCache (int p1, int p2) //Improve it by using a hashtable https://
     for (uint j = 0; j < nbEdges + nbFaces * (nbSubdivision - 1); j++) {
         int refKey = keys[j];
         if (refKey == key1 || refKey == key2) { return j * (nbSubdivision + 1); }
-    } 
+    }
 
     return -1;
 }
@@ -48,13 +49,17 @@ void ComputeSubdivisions(int p1, int p2, int subdivisions, int cacheIndex, int v
     float3 point2 = vertices[p2];
 
     cache[cacheIndex + 0] = p1;
+    vertices[p1] = normalize(vertices[p1]) * radius;
     for (int i = 0; i < subdivisions - 1; i++)
     {
-        vertices[verticesIndex + i] = (point1 * (subdivisions - 1 - i) + point2 * (i + 1)) / subdivisions;
+        vertices[verticesIndex + i] = normalize((point1 * (subdivisions - 1 - i) + point2 * (i + 1)) / subdivisions) * radius;
+        // vertices[verticesIndex + i] = vertices[verticesIndex + i] / length(vertices[verticesIndex + i]) * radius;
         
         cache[cacheIndex + i + 1] = verticesIndex + i;
     }
     cache[cacheIndex + subdivisions] = p2;
+    vertices[p2] = normalize(vertices[p2]) * radius;
+
 }
 
 [numthreads(64, 1, 1)]
@@ -76,6 +81,8 @@ void CreateFaces (uint id : SV_DispatchThreadID)
 
     // For each face we do
     int3 face = triangles[id * (nbSubdivision * nbSubdivision)];
+    int indexCurrentEdge = 0;
+    int nbVerticesPerFace = (nbSubdivision - 2) * (nbSubdivision - 1) / 2;
 
     // int a0 = FindIndexInCache(face.x, face.y);
     int b0 = FindIndexInCache(face.y, face.z); // index in the cache of the start of the sequence of the subdivide edge
@@ -87,35 +94,48 @@ void CreateFaces (uint id : SV_DispatchThreadID)
     triangles[id * (nbSubdivision * nbSubdivision)] = int3(face.z, LIndex(c0, 1, cReversed, nbSubdivision), LIndex(b0, -2, bReversed, nbSubdivision));
 
     // Create all the other triangles
-    for (uint j = 1; j < nbSubdivision; j++) // At each step of the loop we have i * 2 + 1 triangles to create
+    for (int j = 1; j < nbSubdivision; j++) // At each step of the loop we have i * 2 + 1 triangles to create (so at step j we have create j**2 triangles)
     {
-        int debugInt = 0;
-        int startIndexFace = id * (nbSubdivision * nbSubdivision) + (j - 1) * (j * 2 + 1) + 1;
+        int startIndexFace = id * (nbSubdivision * nbSubdivision) + j*j; //(j - 1) * (j * 2 + 1) + 1;
         
         int l1 = FindIndexInCache(LIndex(c0, j, cReversed, nbSubdivision), LIndex(b0, -j - 1, bReversed, nbSubdivision));
         if (l1 == -1) {
             int p1 = LIndex(c0, j, cReversed, nbSubdivision);
             int p2 = LIndex(b0, -j - 1, bReversed, nbSubdivision);
-            keys[nbEdges + id * (nbSubdivision - 1)] = (p1 << 16) + p2;
+            keys[nbEdges + id * (nbSubdivision - 1) + indexCurrentEdge] = (p1 << 16) + p2;
             ComputeSubdivisions(p1, p2, j,
-                                (nbEdges + id * (nbSubdivision - 1)) * (nbSubdivision + 1), 
-                                nbVertices + nbEdges * (nbSubdivision - 1) + id * (j-1) * j / 2 );
+                                (nbEdges + id * (nbSubdivision - 1) + indexCurrentEdge) * (nbSubdivision + 1), 
+                                nbVertices + nbEdges * (nbSubdivision - 1) + id * nbVerticesPerFace + j - 1 );
             l1 = FindIndexInCache(p1, p2);
+            indexCurrentEdge += 1;
         }
         bool l1Reversed = cache[l1] == LIndex(b0, -j - 1, bReversed, nbSubdivision);
 
-        int l2 = FindIndexInCache(LIndex(c0, j + 1, cReversed, nbSubdivision), LIndex(b0, -j - 2, bReversed, nbSubdivision)); 
+        int l2 = FindIndexInCache(LIndex(c0, j + 1, cReversed, nbSubdivision), LIndex(b0, -j - 2, bReversed, nbSubdivision));
+        if (l2 == -1) {
+            int p1 = LIndex(c0, j + 1, cReversed, nbSubdivision);
+            int p2 = LIndex(b0, -j - 2, bReversed, nbSubdivision);
+            keys[nbEdges + id * (nbSubdivision - 1) + indexCurrentEdge] = (p1 << 16) + p2;
+            ComputeSubdivisions(p1, p2, j+1,
+                                (nbEdges + id * (nbSubdivision - 1) + indexCurrentEdge) * (nbSubdivision + 1), 
+                                nbVertices + nbEdges * (nbSubdivision - 1) + id * nbVerticesPerFace + j - 1 );
+            l2 = FindIndexInCache(p1, p2);
+            indexCurrentEdge += 1;
+        }
         bool l2Reversed = cache[l2] == LIndex(b0, -j - 2, bReversed, nbSubdivision);
 
         for (int k = 0; k < j + 1; k++) // Creating upside triangles
         {
             triangles[startIndexFace + k] = int3(LIndex(l1, k, l1Reversed, j), LIndex(l2, k, l2Reversed, j+1), LIndex(l2, k+1, l2Reversed, j+1));
+
+                //pb. cqn4t find l2
+            // triangles[startIndexFace + k] = int3(LIndex(l1, k, l1Reversed, j), cache[l2], cache[l2 + 1]); //Debug purpose
         }
-        for (int k = 0; k < j; k++) // Creating downside triagles
+        for (k = 0; k < j; k++) // Creating downside triagles
         {
             triangles[startIndexFace + j + 1 + k] = int3(LIndex(l1, k, l1Reversed, j), LIndex(l2, k+1, l2Reversed, j+1), LIndex(l1, k+1, l1Reversed, j));
             
-            // triangles[startIndexFace + j + 1 + k] = int3(nbEdges, LIndex(l2, k+1, l2Reversed, j+1), LIndex(l1, k+1, l1Reversed, j));
+            // triangles[startIndexFace + j + 1 + k] = int3(nbEdges, LIndex(l2, k+1, l2Reversed, j+1), LIndex(l1, k+1, l1Reversed, j)); //Debug purposes
         }
     }
 }
