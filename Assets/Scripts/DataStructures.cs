@@ -2,42 +2,36 @@ using System.Collections.Generic;
 using UnityEngine;
 using Geometry;
 
-public class NoDuplicatesList<T> : List<T>
+public class NoDuplicatesList : List<Vector2Int>
 {
     public NoDuplicatesList() : base() { }
-    public NoDuplicatesList(T[] array) : base(array) { }
+    public NoDuplicatesList(Vector2Int[] array) : base(array) { }
 
-    public new void Add(T item)
+    public new void Add(Vector2Int item)
     {
-        if (!Contains(item))
+        if (!Contains(item) && !Contains(new Vector2Int(item.y, item.x)))
             base.Add(item);
     }
 }
 
-public class FacesAndEdgesList : List<TriangleIndices>
+public class FacesAndEdgesList : List<Vector3Int>
 {
-    private NoDuplicatesList<Edge> edges;
+    private NoDuplicatesList edges;
 
     public FacesAndEdgesList() : base()
     {
-        edges = new NoDuplicatesList<Edge>();
+        edges = new NoDuplicatesList();
     }
 
-    // public new void Add(int v1, int v2, int v3)
-    // {
-    //     this.Add(new TriangleIndices(v1, v2, v3));
-
-    // }
-    public new void Add(TriangleIndices triangle)
+    public new void Add(Vector3Int triangle)
     {
-        Debug.Log("Add");
 
         if (!Contains(triangle))
         {
             base.Add(triangle);
-            edges.Add(new Edge(triangle.v1, triangle.v2));
-            edges.Add(new Edge(triangle.v2, triangle.v3));
-            edges.Add(new Edge(triangle.v3, triangle.v1));
+            edges.Add(new Vector2Int(triangle.x, triangle.y));
+            edges.Add(new Vector2Int(triangle.y, triangle.z));
+            edges.Add(new Vector2Int(triangle.z, triangle.x));
         }
     }
 
@@ -47,7 +41,7 @@ public class FacesAndEdgesList : List<TriangleIndices>
         edges.Clear();
     }
 
-    public NoDuplicatesList<Edge> getEdges()
+    public NoDuplicatesList getEdges()
     {
         return edges;
     }

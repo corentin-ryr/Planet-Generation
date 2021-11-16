@@ -7,7 +7,7 @@
 // Create a RenderTexture with enableRandomWrite flag and set it
 // with cs.SetTexture
 RWStructuredBuffer<float3> vertices; // Lenght = nbVertices + (nbSubdivision - 1 ) * nbEdges + nbFaces * n (n + 1) / 2      (avec n = nbSubdivision - 2)
-RWStructuredBuffer<int2> edges; // All the edges to subdivide
+StructuredBuffer<int2> edges; // All the edges to subdivide
 RWStructuredBuffer<int> keys; // The lenght should be nbEdges + nbFaces * (nbSubdivision - 1)
 RWStructuredBuffer<int> cache; //The lenght should be lenght(keys) * (nbSubdivision + 1)
 RWStructuredBuffer<int3> triangles; //The lenght should be nbFaces * nbSubdivision ** 2

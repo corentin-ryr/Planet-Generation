@@ -26,7 +26,7 @@ public class Isocahedron : MonoBehaviour
     //Elements of the unity mesh
     private List<Vector3> vertices = new List<Vector3>();
     private FacesAndEdgesList faces = new FacesAndEdgesList();
-    private NoDuplicatesList<Edge> edges;
+    private NoDuplicatesList edges;
     private MeshFilter meshFilter;
     private MeshRenderer meshRenderer;
 
@@ -94,9 +94,9 @@ public class Isocahedron : MonoBehaviour
         int[] triangles = new int[faces.Count * 3];
         for (int i = 0; i < faces.Count; i++)
         {
-            triangles[i * 3] = faces[i].v1;
-            triangles[i * 3 + 1] = faces[i].v2;
-            triangles[i * 3 + 2] = faces[i].v3;
+            triangles[i * 3] = faces[i].x;
+            triangles[i * 3 + 1] = faces[i].y;
+            triangles[i * 3 + 2] = faces[i].z;
         }
         mesh.triangles = triangles;
         mesh.RecalculateNormals();
@@ -132,32 +132,32 @@ public class Isocahedron : MonoBehaviour
         // create 20 triangles of the icosahedron
 
         // 5 faces around point 0
-        faces.Add(new TriangleIndices(0, 11, 5));
-        faces.Add(new TriangleIndices(0, 5, 1));
-        faces.Add(new TriangleIndices(0, 1, 7));
-        faces.Add(new TriangleIndices(0, 7, 10));
-        faces.Add(new TriangleIndices(0, 10, 11));
+        faces.Add(new Vector3Int(0, 11, 5));
+        faces.Add(new Vector3Int(0, 5, 1));
+        faces.Add(new Vector3Int(0, 1, 7));
+        faces.Add(new Vector3Int(0, 7, 10));
+        faces.Add(new Vector3Int(0, 10, 11));
 
         // 5 adjacent faces
-        faces.Add(new TriangleIndices(1, 5, 9));
-        faces.Add(new TriangleIndices(5, 11, 4));
-        faces.Add(new TriangleIndices(11, 10, 2));
-        faces.Add(new TriangleIndices(10, 7, 6));
-        faces.Add(new TriangleIndices(7, 1, 8));
+        faces.Add(new Vector3Int(1, 5, 9));
+        faces.Add(new Vector3Int(5, 11, 4));
+        faces.Add(new Vector3Int(11, 10, 2));
+        faces.Add(new Vector3Int(10, 7, 6));
+        faces.Add(new Vector3Int(7, 1, 8));
 
         // 5 faces around point 3
-        faces.Add(new TriangleIndices(3, 9, 4));
-        faces.Add(new TriangleIndices(3, 4, 2));
-        faces.Add(new TriangleIndices(3, 2, 6));
-        faces.Add(new TriangleIndices(3, 6, 8));
-        faces.Add(new TriangleIndices(3, 8, 9));
+        faces.Add(new Vector3Int(3, 9, 4));
+        faces.Add(new Vector3Int(3, 4, 2));
+        faces.Add(new Vector3Int(3, 2, 6));
+        faces.Add(new Vector3Int(3, 6, 8));
+        faces.Add(new Vector3Int(3, 8, 9));
 
         // 5 adjacent faces
-        faces.Add(new TriangleIndices(4, 9, 5));
-        faces.Add(new TriangleIndices(2, 4, 11));
-        faces.Add(new TriangleIndices(6, 2, 10));
-        faces.Add(new TriangleIndices(8, 6, 7));
-        faces.Add(new TriangleIndices(9, 8, 1));
+        faces.Add(new Vector3Int(4, 9, 5));
+        faces.Add(new Vector3Int(2, 4, 11));
+        faces.Add(new Vector3Int(6, 2, 10));
+        faces.Add(new Vector3Int(8, 6, 7));
+        faces.Add(new Vector3Int(9, 8, 1));
     }
 
 
@@ -175,6 +175,7 @@ public class Isocahedron : MonoBehaviour
         ComputeBuffer verticesBuffer = ComputeHelper.CreateAndSetBuffer(verticesArray, computeShaderSubdivideEdges, "vertices", kernelSubdivide);
         computeShaderSubdivideEdges.SetBuffer(kernelTriangulate, "vertices", verticesBuffer);
 
+        Debug.Log(edges.Count);
         ComputeBuffer edgesBuffer = ComputeHelper.CreateAndSetBuffer(edges.ToArray(), computeShaderSubdivideEdges, "edges", kernelSubdivide);
 
         int lenghtKeys = edges.Count + faces.Count * (nbSubdivision - 1);
@@ -186,11 +187,11 @@ public class Isocahedron : MonoBehaviour
         ComputeBuffer cacheBuffer = ComputeHelper.CreateAndSetBuffer(cacheArray, computeShaderSubdivideEdges, "cache", kernelSubdivide);
         computeShaderSubdivideEdges.SetBuffer(kernelTriangulate, "cache", cacheBuffer);
 
-        TriangleIndices[] trianglesArray = new TriangleIndices[faces.Count * nbSubdivision * nbSubdivision];
+        Vector3Int[] trianglesArray = new Vector3Int[faces.Count * nbSubdivision * nbSubdivision];
         for (int i = 0; i < trianglesArray.Length; i++)
         {
             if (i % (nbSubdivision * nbSubdivision) == 0) { trianglesArray[i] = faces[i / (nbSubdivision * nbSubdivision)]; }
-            else { trianglesArray[i] = new TriangleIndices(0, 0, 0); }
+            else { trianglesArray[i] = new Vector3Int(0, 0, 0); }
         }
         ComputeBuffer trianglesBuffer = ComputeHelper.CreateAndSetBuffer(trianglesArray, computeShaderSubdivideEdges, "triangles", kernelTriangulate);
 
@@ -220,21 +221,18 @@ public class Isocahedron : MonoBehaviour
         faces.Clear();
         edges.Clear();
 
-        foreach (var item in trianglesArray)
+        foreach (Vector3Int item in trianglesArray) //It updates the edges at the same time
         {
             faces.Add(item);
         }
-        // edges = faces.getEdges();
 
         if (verbose)
         {
-            Debug.Log(faces[faceNumberDebug].v1 + "  " + faces[faceNumberDebug].v2 + "  " + faces[faceNumberDebug].v3);
+            Debug.Log(faces[faceNumberDebug].x + "  " + faces[faceNumberDebug].y + "  " + faces[faceNumberDebug].z);
             Debug.Log(vertices.Count);
             Debug.Log(edges.Count);
             Debug.Log(faces.Count);
         }
-
-        Debug.Log("TEST");
 
         // Free the data on the GPU
         verticesBuffer.Dispose();
@@ -261,11 +259,11 @@ public class Isocahedron : MonoBehaviour
         foreach (var tri in faces) // We refine by adding nbSubdivision vertices to each side of each face
         {
             // Create the aditional vertices on the sides
-            int[] a = subdivideEdge(tri.v1, tri.v2, nbSubdivision);
-            int[] b = subdivideEdge(tri.v2, tri.v3, nbSubdivision);
-            int[] c = subdivideEdge(tri.v3, tri.v1, nbSubdivision);
+            int[] a = subdivideEdge(tri.x, tri.y, nbSubdivision);
+            int[] b = subdivideEdge(tri.y, tri.z, nbSubdivision);
+            int[] c = subdivideEdge(tri.z, tri.x, nbSubdivision);
 
-            faces2.Add(new TriangleIndices(tri.v3, c[1], b[nbSubdivision - 1])); // We create the triangle at the top
+            faces2.Add(new Vector3Int(tri.z, c[1], b[nbSubdivision - 1])); // We create the triangle at the top
 
             for (int j = 1; j < nbSubdivision; j++) // At each step of the loop we have i * 2 + 1 triangles to create
             {
@@ -274,11 +272,11 @@ public class Isocahedron : MonoBehaviour
 
                 for (int k = 0; k < j + 1; k++) // Creating upside triangles
                 {
-                    faces2.Add(new TriangleIndices(l1[k], l2[k], l2[k + 1]));
+                    faces2.Add(new Vector3Int(l1[k], l2[k], l2[k + 1]));
                 }
                 for (int k = 0; k < j; k++) // Creating downside triagles
                 {
-                    faces2.Add(new TriangleIndices(l1[k], l2[k + 1], l1[k + 1]));
+                    faces2.Add(new Vector3Int(l1[k], l2[k + 1], l1[k + 1]));
                 }
             }
 
@@ -431,11 +429,11 @@ public class Isocahedron : MonoBehaviour
     //         }
 
     //         Gizmos.color = Color.yellow;
-    //         Gizmos.DrawSphere(vertices[faces[faceNumberDebug].v1], 0.1f);
+    //         Gizmos.DrawSphere(vertices[faces[faceNumberDebug].x], 0.1f);
     //         Gizmos.color = Color.green;
-    //         Gizmos.DrawSphere(vertices[faces[faceNumberDebug].v2], 0.1f);
+    //         Gizmos.DrawSphere(vertices[faces[faceNumberDebug].y], 0.1f);
     //         Gizmos.color = Color.green;
-    //         Gizmos.DrawSphere(vertices[faces[faceNumberDebug].v3], 0.1f);
+    //         Gizmos.DrawSphere(vertices[faces[faceNumberDebug].z], 0.1f);
 
     //     }
 
