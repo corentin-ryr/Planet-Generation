@@ -43,11 +43,6 @@ namespace Geometry
             this.v3 = v3;
         }
 
-        // public TriangleIndices( v3){
-        //     this.TriangleIndices(v3.x, v3.y, v3.z);
-        // }
-
-
     }
 
 }

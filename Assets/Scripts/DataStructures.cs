@@ -23,23 +23,21 @@ public class FacesAndEdgesList : List<TriangleIndices>
         edges = new NoDuplicatesList<Edge>();
     }
 
-    public new void Add(int v1, int v2, int v3)
-    {
-        this.Add(new TriangleIndices(v1, v2, v3));
+    // public new void Add(int v1, int v2, int v3)
+    // {
+    //     this.Add(new TriangleIndices(v1, v2, v3));
 
-    }
+    // }
     public new void Add(TriangleIndices triangle)
     {
+        Debug.Log("Add");
+
         if (!Contains(triangle))
         {
             base.Add(triangle);
             edges.Add(new Edge(triangle.v1, triangle.v2));
             edges.Add(new Edge(triangle.v2, triangle.v3));
             edges.Add(new Edge(triangle.v3, triangle.v1));
-        }
-        else
-        {
-            // Debug.Log("Already contains");
         }
     }
 

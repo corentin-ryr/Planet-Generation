@@ -1,4 +1,5 @@
 ﻿// Each #kernel tells which function to compile; you can have many kernels
+#pragma target 5.0
 #pragma kernel SubdivideEdges
 #pragma kernel CreateFaces
 
@@ -96,7 +97,7 @@ void CreateFaces (uint id : SV_DispatchThreadID)
     // Create all the other triangles
     for (int j = 1; j < nbSubdivision; j++) // At each step of the loop we have i * 2 + 1 triangles to create (so at step j we have create j**2 triangles)
     {
-        int startIndexFace = id * (nbSubdivision * nbSubdivision) + j*j; //(j - 1) * (j * 2 + 1) + 1;
+        int startIndexFace = id * (nbSubdivision * nbSubdivision) + j*j;
         
         int l1 = FindIndexInCache(LIndex(c0, j, cReversed, nbSubdivision), LIndex(b0, -j - 1, bReversed, nbSubdivision));
         if (l1 == -1) {
@@ -127,15 +128,10 @@ void CreateFaces (uint id : SV_DispatchThreadID)
         for (int k = 0; k < j + 1; k++) // Creating upside triangles
         {
             triangles[startIndexFace + k] = int3(LIndex(l1, k, l1Reversed, j), LIndex(l2, k, l2Reversed, j+1), LIndex(l2, k+1, l2Reversed, j+1));
-
-                //pb. cqn4t find l2
-            // triangles[startIndexFace + k] = int3(LIndex(l1, k, l1Reversed, j), cache[l2], cache[l2 + 1]); //Debug purpose
         }
         for (k = 0; k < j; k++) // Creating downside triagles
         {
             triangles[startIndexFace + j + 1 + k] = int3(LIndex(l1, k, l1Reversed, j), LIndex(l2, k+1, l2Reversed, j+1), LIndex(l1, k+1, l1Reversed, j));
-            
-            // triangles[startIndexFace + j + 1 + k] = int3(nbEdges, LIndex(l2, k+1, l2Reversed, j+1), LIndex(l1, k+1, l1Reversed, j)); //Debug purposes
         }
     }
 }
