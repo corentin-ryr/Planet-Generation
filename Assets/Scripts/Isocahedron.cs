@@ -26,6 +26,8 @@ public class Isocahedron : MonoBehaviour
     //Elements of the unity mesh
     private List<Vector3> vertices = new List<Vector3>();
     private FacesAndEdgesList faces = new FacesAndEdgesList();
+
+    private Vector3Int[] triangles_array;
     private NoDuplicatesList edges;
     private MeshFilter meshFilter;
     private MeshRenderer meshRenderer;
@@ -37,7 +39,7 @@ public class Isocahedron : MonoBehaviour
     private Crater[] craters;
 
     //Debug variables
-    int faceNumberDebug = 10;
+    public int faceNumberDebug = 0;
 
     #endregion
 
@@ -91,12 +93,12 @@ public class Isocahedron : MonoBehaviour
         Mesh mesh = new Mesh();
         mesh.vertices = vertices.ToArray();
 
-        int[] triangles = new int[faces.Count * 3];
-        for (int i = 0; i < faces.Count; i++)
+        int[] triangles = new int[triangles_array.Length * 3];
+        for (int i = 0; i < triangles_array.Length; i++)
         {
-            triangles[i * 3] = faces[i].x;
-            triangles[i * 3 + 1] = faces[i].y;
-            triangles[i * 3 + 2] = faces[i].z;
+            triangles[i * 3] = triangles_array[i].x;
+            triangles[i * 3 + 1] = triangles_array[i].y;
+            triangles[i * 3 + 2] = triangles_array[i].z;
         }
         mesh.triangles = triangles;
         mesh.RecalculateNormals();
@@ -175,7 +177,6 @@ public class Isocahedron : MonoBehaviour
         ComputeBuffer verticesBuffer = ComputeHelper.CreateAndSetBuffer(verticesArray, computeShaderSubdivideEdges, "vertices", kernelSubdivide);
         computeShaderSubdivideEdges.SetBuffer(kernelTriangulate, "vertices", verticesBuffer);
 
-        Debug.Log(edges.Count);
         ComputeBuffer edgesBuffer = ComputeHelper.CreateAndSetBuffer(edges.ToArray(), computeShaderSubdivideEdges, "edges", kernelSubdivide);
 
         int lenghtKeys = edges.Count + faces.Count * (nbSubdivision - 1);
@@ -221,6 +222,7 @@ public class Isocahedron : MonoBehaviour
         faces.Clear();
         edges.Clear();
 
+        triangles_array = trianglesArray;
         foreach (Vector3Int item in trianglesArray) //It updates the edges at the same time
         {
             faces.Add(item);
