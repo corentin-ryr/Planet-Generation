@@ -60,10 +60,7 @@ public class Isocahedron : MonoBehaviour
 
         if (GPU)
         {
-            for (int i = 0; i < subdivisionSequence.Length; i++)
-            {
-                refineSphereGPU(subdivisionSequence[i]); // Subdivide every face by adding new points and triangulating them
-            }
+            refineSphereGPU(subdivisionSequence); // Subdivide every face by adding new points and triangulating them
         }
         else
         {
@@ -163,15 +160,26 @@ public class Isocahedron : MonoBehaviour
     }
 
 
-    private void refineSphereGPU(int nbSubdivision, bool verbose = false)
+    private void refineSphereGPU(int[] subdivisionSequence, bool verbose = false)
     {
         int time0 = Environment.TickCount;
 
         int kernelSubdivide = computeShaderSubdivideEdges.FindKernel("SubdivideEdges");
         int kernelTriangulate = computeShaderSubdivideEdges.FindKernel("CreateFaces");
 
+        // Compute buffer length =======================================================================
+        int verticesBufferLength = vertices.Count;
+        int lenghtKeys = edges.Count;
+        int cacheLength = 1;
+        foreach (int nbSubdivision in subdivisionSequence)
+        {
+            verticesBufferLength = verticesBufferLength + (nbSubdivision - 1) * edges.Count + faces.Count * (nbSubdivision - 2) * (nbSubdivision - 1) / 2;
+            lenghtKeys = lenghtKeys + faces.Count * (nbSubdivision - 1);
+            cacheLength = czcheLength + lenghtKeys * (nbSubdivision + 1);
+
+        }
+
         // Send the buffers to the Compute Shader ======================================================
-        int verticesBufferLength = vertices.Count + (nbSubdivision - 1) * edges.Count + faces.Count * (nbSubdivision - 2) * (nbSubdivision - 1) / 2;
         Vector3[] verticesArray = vertices.ToArray();
         Array.Resize(ref verticesArray, verticesBufferLength);
         ComputeBuffer verticesBuffer = ComputeHelper.CreateAndSetBuffer(verticesArray, computeShaderSubdivideEdges, "vertices", kernelSubdivide);
@@ -179,7 +187,6 @@ public class Isocahedron : MonoBehaviour
 
         ComputeBuffer edgesBuffer = ComputeHelper.CreateAndSetBuffer(edges.ToArray(), computeShaderSubdivideEdges, "edges", kernelSubdivide);
 
-        int lenghtKeys = edges.Count + faces.Count * (nbSubdivision - 1);
         int[] keysArray = new int[lenghtKeys];
         ComputeBuffer keysBuffer = ComputeHelper.CreateAndSetBuffer(keysArray, computeShaderSubdivideEdges, "keys", kernelSubdivide);
         computeShaderSubdivideEdges.SetBuffer(kernelTriangulate, "keys", keysBuffer);
@@ -204,29 +211,35 @@ public class Isocahedron : MonoBehaviour
         computeShaderSubdivideEdges.SetFloat("radius", radius);
 
         // Launch the computation ========================================================================
-        ComputeHelper.Run(computeShaderSubdivideEdges, edges.Count, 1, 1, kernelSubdivide);
-        ComputeHelper.Run(computeShaderSubdivideEdges, faces.Count, 1, 1, kernelTriangulate);
+        foreach (int nbSubdivision in subdivisionSequence)
+        {
+            ComputeHelper.Run(computeShaderSubdivideEdges, edges.Count, 1, 1, kernelSubdivide);
+            ComputeHelper.Run(computeShaderSubdivideEdges, faces.Count, 1, 1, kernelTriangulate);
 
-        // edges = faces.getEdges();
-        // computeShaderSubdivideEdges.SetData()  (kernelTriangulate, "cache", cacheBuffer);
+            trianglesBuffer.GetData(trianglesArray);
 
-        // ComputeHelper.Run(computeShaderSubdivideEdges, edges.Count * nbSubdivision, 1, 1, kernelSubdivide);
-        // ComputeHelper.Run(computeShaderSubdivideEdges, faces.Count * nbSubdivision * nbSubdivision, 1, 1, kernelTriangulate);
+            faces.Clear();
+            edges.Clear();
+            foreach (Vector3Int item in trianglesArray) //It updates the edges at the same time
+            {
+                faces.Add(item);
+            }
 
-        // Retrieve the data
-        trianglesBuffer.GetData(trianglesArray);
+        }
+
+        // Retrieve the data ============================================================================
+        // trianglesBuffer.GetData(trianglesArray);
+        // faces.Clear();
+        // edges.Clear();
+
+        triangles_array = trianglesArray;
+        // foreach (Vector3Int item in trianglesArray) //It updates the edges at the same time
+        // {
+        //     faces.Add(item);
+        // }
 
         verticesBuffer.GetData(verticesArray);
         vertices = verticesArray.ToList<Vector3>();
-
-        faces.Clear();
-        edges.Clear();
-
-        triangles_array = trianglesArray;
-        foreach (Vector3Int item in trianglesArray) //It updates the edges at the same time
-        {
-            faces.Add(item);
-        }
 
         if (verbose)
         {
