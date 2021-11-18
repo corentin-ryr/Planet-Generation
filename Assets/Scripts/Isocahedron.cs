@@ -4,111 +4,67 @@ using UnityEngine;
 using System;
 using Geometry;
 using System.Linq;
+using UnityEngine.Rendering;
 
-public struct Crater
-{
-    public Vector3 center;
-    public float radius;
-}
 
-public class Isocahedron : MonoBehaviour
+public class Isocahedron
 {
     #region Variables
     //Parameters
-    public float radius;
-    public int[] subdivisionSequence = { 2, 3 };
-    public float testValue = 1f;
-    public bool GPU;
+    private float radius;
+    private int nbSubdivision;
 
-    public ComputeShader computeShader;
-    public ComputeShader computeShaderSubdivideEdges;
+    private ComputeShader computeShaderSubdivideEdges;
 
     //Elements of the unity mesh
     private List<Vector3> vertices = new List<Vector3>();
     private FacesAndEdgesList faces = new FacesAndEdgesList();
-
-    private Vector3Int[] triangles_array;
+    private Vector3Int[] triangles_array = new Vector3Int[0];
     private NoDuplicatesList edges;
-    private MeshFilter meshFilter;
-    private MeshRenderer meshRenderer;
 
-    // Cache for the triangulation
-    private ExtendedDictionary<int, int[]> middlePointIndexCache = new ExtendedDictionary<int, int[]>();
-
-    // Variable to store the craters data
-    private Crater[] craters;
-
-    //Debug variables
-    public int faceNumberDebug = 0;
+    System.Action<Vector3Int[], Vector3[]> callback;
 
     #endregion
 
-    void Start()
+    public Isocahedron(int nbSubdivision, float radius, ComputeShader computeShaderSubdivideEdges, System.Action<Vector3Int[], Vector3[]> callback)
     {
-        createSphere();
+        this.nbSubdivision = nbSubdivision;
+        this.radius = radius;
+        this.callback = callback;
+        this.computeShaderSubdivideEdges = computeShaderSubdivideEdges;
     }
 
-    public void createSphere()
+    public void CreateSphere()
     {
-
         edges = faces.getEdges();
-        meshFilter = gameObject.AddComponent(typeof(MeshFilter)) as MeshFilter;
-        meshRenderer = gameObject.AddComponent(typeof(MeshRenderer)) as MeshRenderer;
-
-        createVertices(); // Creates only the points (vertices)
-        triangulateVertices(); // Create the faces, aka the triangles between the points
-
-        if (GPU)
-        {
-            for (int i = 0; i < subdivisionSequence.Length; i++)
-            {
-                refineSphereGPU(subdivisionSequence[i]); // Subdivide every face by adding new points and triangulating them
-            }
-        }
-        else
-        {
-            for (int i = 0; i < subdivisionSequence.Length; i++)
-            {
-                refineSphere(subdivisionSequence[i]); // Subdivide every face by adding new points and triangulating them
-                projectPoints(); // Multiply the magnitude of every points to have a bigger planet
-            }
-        }
-
-        generateMesh(vertices, faces); // Pass the vertices and triangles to the mesh to render it
+        CreateVertices(); // Creates only the points (vertices)
+        TriangulateVertices(); // Create the faces, aka the triangles between the points
+        RefineSphereGPU(nbSubdivision); // Subdivide every face by adding new points and triangulating them
     }
 
-    void Update()
+    private void OnCompleteReadback(AsyncGPUReadbackRequest request, int whichArray, ref ComputeBuffer buffer)
     {
-        // The sphere is not build, all we need to do is alter the height of the points
-        List<Vector3> updatedVertices = createTerrain(); // Use a compute shader to move the heights of the vertices
+        if (request.hasError)
+        {
+            Debug.Log("GPU readback error detected.");
+            return;
+        }
+        if (whichArray == 0)
+        {
+            vertices = request.GetData<Vector3>().ToList<Vector3>();
+        }
+        else if (whichArray == 1)
+        {
+            triangles_array = request.GetData<Vector3Int>().ToArray();
+        }
+        buffer.Dispose();
 
-        generateMesh(updatedVertices, faces); // Pass the vertices and triangles to the mesh to render it
+        callback(triangles_array, vertices.ToArray());
+        return;
     }
 
     #region Mesh generation
-
-    private void generateMesh(List<Vector3> vertices, FacesAndEdgesList faces)
-    {
-        // Create the actual Unity mesh object
-        Mesh mesh = new Mesh();
-        mesh.vertices = vertices.ToArray();
-
-        int[] triangles = new int[triangles_array.Length * 3];
-        for (int i = 0; i < triangles_array.Length; i++)
-        {
-            triangles[i * 3] = triangles_array[i].x;
-            triangles[i * 3 + 1] = triangles_array[i].y;
-            triangles[i * 3 + 2] = triangles_array[i].z;
-        }
-        mesh.triangles = triangles;
-        mesh.RecalculateNormals();
-
-        meshRenderer.material.SetColor("_Color", Color.red);
-
-        meshFilter.mesh = mesh;
-    }
-
-    private void createVertices()
+    private void CreateVertices()
     {
         // create 12 vertices of a icosahedron
         float t = (float)(1.0 + Math.Sqrt(5.0)) / 2.0f; //Golden ratio
@@ -129,7 +85,7 @@ public class Isocahedron : MonoBehaviour
         vertices.Add(new Vector3(-t, 0, 1));
     }
 
-    private void triangulateVertices()
+    private void TriangulateVertices()
     {
         // create 20 triangles of the icosahedron
 
@@ -163,10 +119,8 @@ public class Isocahedron : MonoBehaviour
     }
 
 
-    private void refineSphereGPU(int nbSubdivision, bool verbose = false)
+    private void RefineSphereGPU(int nbSubdivision)
     {
-        int time0 = Environment.TickCount;
-
         int kernelSubdivide = computeShaderSubdivideEdges.FindKernel("SubdivideEdges");
         int kernelTriangulate = computeShaderSubdivideEdges.FindKernel("CreateFaces");
 
@@ -207,215 +161,16 @@ public class Isocahedron : MonoBehaviour
         ComputeHelper.Run(computeShaderSubdivideEdges, edges.Count, 1, 1, kernelSubdivide);
         ComputeHelper.Run(computeShaderSubdivideEdges, faces.Count, 1, 1, kernelTriangulate);
 
-        // edges = faces.getEdges();
-        // computeShaderSubdivideEdges.SetData()  (kernelTriangulate, "cache", cacheBuffer);
-
-        // ComputeHelper.Run(computeShaderSubdivideEdges, edges.Count * nbSubdivision, 1, 1, kernelSubdivide);
-        // ComputeHelper.Run(computeShaderSubdivideEdges, faces.Count * nbSubdivision * nbSubdivision, 1, 1, kernelTriangulate);
-
-        // Retrieve the data
-        trianglesBuffer.GetData(trianglesArray);
-
-        verticesBuffer.GetData(verticesArray);
-        vertices = verticesArray.ToList<Vector3>();
-
-        faces.Clear();
-        edges.Clear();
-
-        triangles_array = trianglesArray;
-        foreach (Vector3Int item in trianglesArray) //It updates the edges at the same time
-        {
-            faces.Add(item);
-        }
-
-        if (verbose)
-        {
-            Debug.Log(faces[faceNumberDebug].x + "  " + faces[faceNumberDebug].y + "  " + faces[faceNumberDebug].z);
-            Debug.Log(vertices.Count);
-            Debug.Log(edges.Count);
-            Debug.Log(faces.Count);
-        }
+        // Retrieve the data =============================================================================
+        AsyncGPUReadback.Request(verticesBuffer, request => OnCompleteReadback(request, 0, ref verticesBuffer));
+        AsyncGPUReadback.Request(trianglesBuffer, request => OnCompleteReadback(request, 1, ref trianglesBuffer));
 
         // Free the data on the GPU
-        verticesBuffer.Dispose();
         edgesBuffer.Dispose();
         keysBuffer.Dispose();
         cacheBuffer.Dispose();
-        trianglesBuffer.Dispose();
-
-
-        Debug.Log("Time to execute the compute shader " + (int)(Environment.TickCount - time0));
     }
-
     #endregion
-
-    #region CPU sphere generation
-
-    private void refineSphere(int nbSubdivision)
-    {
-        int time0 = Environment.TickCount;
-        middlePointIndexCache = new ExtendedDictionary<int, int[]>();
-
-        // refine triangles
-        var faces2 = new FacesAndEdgesList();
-        foreach (var tri in faces) // We refine by adding nbSubdivision vertices to each side of each face
-        {
-            // Create the aditional vertices on the sides
-            int[] a = subdivideEdge(tri.x, tri.y, nbSubdivision);
-            int[] b = subdivideEdge(tri.y, tri.z, nbSubdivision);
-            int[] c = subdivideEdge(tri.z, tri.x, nbSubdivision);
-
-            faces2.Add(new Vector3Int(tri.z, c[1], b[nbSubdivision - 1])); // We create the triangle at the top
-
-            for (int j = 1; j < nbSubdivision; j++) // At each step of the loop we have i * 2 + 1 triangles to create
-            {
-                int[] l1 = subdivideEdge(c[j], b[nbSubdivision - j], j);
-                int[] l2 = subdivideEdge(c[j + 1], b[nbSubdivision - j - 1], j + 1);
-
-                for (int k = 0; k < j + 1; k++) // Creating upside triangles
-                {
-                    faces2.Add(new Vector3Int(l1[k], l2[k], l2[k + 1]));
-                }
-                for (int k = 0; k < j; k++) // Creating downside triagles
-                {
-                    faces2.Add(new Vector3Int(l1[k], l2[k + 1], l1[k + 1]));
-                }
-            }
-
-        }
-        faces = faces2;
-
-        Debug.Log("Time to execute the compute shader " + (int)(Environment.TickCount - time0));
-    }
-
-
-    private int[] subdivideEdge(int p1, int p2, int nbSubdivision)
-    {
-        // first check if we have it already
-        int key1 = ((int)p1 << 16) + (int)p2;
-        int key2 = ((int)p2 << 16) + (int)p1;
-
-        int[] ret;
-        if (this.middlePointIndexCache.TryGetValue(key1, out ret))
-        {
-            return ret;
-        }
-        if (this.middlePointIndexCache.TryGetValue(key2, out ret))
-        {
-            int[] reverse = Enumerable.Reverse(ret).ToArray();
-            return reverse;
-        }
-
-        // not in cache, calculate it
-        Vector3[] middleVertices = new Vector3[nbSubdivision - 1];
-
-        Vector3 point1 = vertices[p1];
-        Vector3 point2 = vertices[p2];
-        for (int i = 0; i < nbSubdivision - 1; i++)
-        {
-            Vector3 middle = (point1 * (nbSubdivision - 1 - i) + point2 * (i + 1)) / nbSubdivision;
-
-            middleVertices[i] = middle;
-        }
-
-        int[] indices = new int[nbSubdivision + 1];
-        indices[0] = p1;
-        for (int i = 1; i < nbSubdivision; i++)
-        {
-            vertices.Add(middleVertices[i - 1]);
-            indices[i] = vertices.IndexOf(middleVertices[i - 1]);
-        }
-        indices[nbSubdivision] = p2;
-
-        // store it, return index
-        this.middlePointIndexCache.Add(key1, indices);
-
-        return indices;
-    }
-
-    private int[] subdivideEdgeLight(int p1, int p2, int nbSubdivision)
-    {
-        // first check if we have it already
-        int key1 = ((int)p1 << 16) + (int)p2;
-        int key2 = ((int)p2 << 16) + (int)p1;
-
-        int[] ret;
-        if (this.middlePointIndexCache.TryGetValue(key1, out ret))
-        {
-            return ret;
-        }
-        if (this.middlePointIndexCache.TryGetValue(key2, out ret))
-        {
-            int[] reverse = Enumerable.Reverse(ret).ToArray();
-            return reverse;
-        }
-
-        return null;
-    }
-
-    private void projectPoints() //Put the refined points back on the sphere
-    {
-        for (int i = 0; i < vertices.Count; i++)
-        {
-            vertices[i] = vertices[i] / vertices[i].magnitude * radius;
-        }
-    }
-
-
-    #endregion
-
-
-    #region Terrain generation
-    private List<Vector3> createTerrain()
-    {
-        Vector3[] verticesArray = vertices.ToArray();
-
-        Vector3[] updatedVertices = craterGeneration(verticesArray);
-
-
-        return new List<Vector3>(updatedVertices);
-    }
-
-    private Vector3[] craterGeneration(Vector3[] verticesArray)
-    {
-        ComputeBuffer verticesBuffer = new ComputeBuffer(vertices.Count, sizeof(float) * 3);
-        verticesBuffer.SetData(verticesArray);
-
-        computeShader.SetBuffer(0, "vertices", verticesBuffer);
-        computeShader.SetFloat("numVertices", vertices.Count);
-        computeShader.SetFloat("testValue", testValue);
-
-        computeShader.Dispatch(0, vertices.Count / 10, 1, 1);
-
-        verticesBuffer.GetData(verticesArray);
-
-        verticesBuffer.Dispose();
-
-        return verticesArray;
-    }
-
-    #endregion
-
-    #region Helper functions
-
-    private static T[][] Make2DArray<T>(T[] input, int height, int width)
-    {
-        // T[,] output = new T[height, width];
-        List<T[]> output = new List<T[]>();
-        for (int i = 0; i < height; i++)
-        {
-            T[] temp = new T[width];
-            for (int j = 0; j < width; j++)
-            {
-                temp[j] = input[i * width + j];
-            }
-            output.Add(temp);
-        }
-        return output.ToArray();
-    }
-
-    #endregion
-
 
     #region Gizmos
 

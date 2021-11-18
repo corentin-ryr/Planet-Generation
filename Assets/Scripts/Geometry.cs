@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace Geometry
 {
-    public struct Edge
+    public class Edge
     {
         public int p1;
         public int p2;
@@ -27,6 +27,11 @@ namespace Geometry
                 return ((p1 == edge.p1) && (p2 == edge.p2)) || ((p2 == edge.p1) && (p1 == edge.p2)) || edge.p1 == edge.p2;
             }
         }
+
+        // public override int GetHashCode()
+        // {
+        //     return base.GetHashCode();
+        // }
 
         public override string ToString() => $"({p1}, {p2})";
     }

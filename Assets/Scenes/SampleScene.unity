@@ -149,17 +149,14 @@ MonoBehaviour:
   m_GameObject: {fileID: 359213007}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: fe4c5e27e4468a1939dd82c8f64a4751, type: 3}
+  m_Script: {fileID: 11500000, guid: 79f63dd95583f96c9a343e9ae75ff64a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  nbSubdivision: 50
   radius: 1
-  subdivisionSequence: 05000000
-  testValue: 1
-  GPU: 1
-  computeShader: {fileID: 7200000, guid: 12d160a84020fd061bd5c0d926e5b895, type: 3}
-  computeShaderSubdivideEdges: {fileID: 7200000, guid: c9fedb8a04a18d2349241afde60087c9,
-    type: 3}
-  faceNumberDebug: 6
+  material: {fileID: 2100000, guid: 07bf5f987ebc0d3dfb6675ebd776d68f, type: 2}
+  shapeShader: {fileID: 0}
+  triangulationShader: {fileID: 7200000, guid: c9fedb8a04a18d2349241afde60087c9, type: 3}
 --- !u!4 &359213009
 Transform:
   m_ObjectHideFlags: 0
