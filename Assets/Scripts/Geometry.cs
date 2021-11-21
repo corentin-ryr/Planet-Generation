@@ -3,37 +3,37 @@ using UnityEngine;
 
 namespace Geometry
 {
-    public class Edge
+    public struct Edge
     {
-        public int p1;
-        public int p2;
+        public int X;
+        public int Y;
 
-        public Edge(int p1, int p2)
+        public Edge(int x, int y)
         {
-            this.p1 = p1;
-            this.p2 = p2;
+            this.X = x;
+            this.Y = y;
         }
 
         public override bool Equals(object obj)
         {
-            //Check for null and compare run-time types.
-            if ((obj == null) || !this.GetType().Equals(obj.GetType()))
-            {
-                return false;
-            }
-            else
-            {
-                Edge edge = (Edge)obj;
-                return ((p1 == edge.p1) && (p2 == edge.p2)) || ((p2 == edge.p1) && (p1 == edge.p2)) || edge.p1 == edge.p2;
-            }
+            if (obj is Edge) return this.Equals((Edge)obj);
+            else return false;
         }
 
-        // public override int GetHashCode()
-        // {
-        //     return base.GetHashCode();
-        // }
+        public bool Equals(Edge other)
+        {
+            return (((this.X == other.X) && (this.Y == other.Y)) || ((this.X == other.Y) && (this.Y == other.X)));
+        }
 
-        public override string ToString() => $"({p1}, {p2})";
+        public override int GetHashCode()
+        {
+            return (Math.Min(this.X, this.Y).GetHashCode() + Math.Max(this.X, this.Y).GetHashCode());
+        }
+
+        public override string ToString()
+        {
+            return string.Format("{{X:{0} Z:{1}}}", this.X, this.Y);
+        }
     }
 
 

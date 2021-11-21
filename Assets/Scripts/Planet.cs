@@ -15,35 +15,30 @@ public class Planet : MonoBehaviour
     public Material material;
     public Shader shapeShader;
     public ComputeShader triangulationShader;
+    public PlanetChunk PlanetChunkPrefab;
 
     //Mesh Data =======================================================
     private MeshFilter meshFilter;
     private MeshRenderer meshRenderer;
     private Mesh mesh;
+
     private int[] triangles;
     private Vector3[] vertices;
+
+    private List<PlanetChunk> chunks = new List<PlanetChunk>();
+
 
     // Start is called before the first frame update
     void Start()
     {
-        meshFilter = gameObject.AddComponent(typeof(MeshFilter)) as MeshFilter;
-        meshRenderer = gameObject.AddComponent(typeof(MeshRenderer)) as MeshRenderer;
-        meshRenderer.material = material;
-
-        mesh = new Mesh();
-
-        Isocahedron Sphere = new Isocahedron(nbSubdivision, radius, triangulationShader, UpdateMeshData);
+        Isocahedron Sphere = new Isocahedron(nbSubdivision, radius, triangulationShader, CreateChunks);
         Sphere.CreateSphere();
     }
 
-    // Update is called once per frame
-    void Update()
-    {
-        // GenerateMesh();
-    }
 
     void UpdateMeshData(Vector3Int[] trianglesData, Vector3[] verticesData)
     {
+        int verticesPerChunk = nbSubdivision * nbSubdivision;
         vertices = verticesData;
 
         triangles = new int[trianglesData.Length * 3];
@@ -54,17 +49,31 @@ public class Planet : MonoBehaviour
             triangles[i * 3 + 2] = trianglesData[i].z;
         }
 
-        GenerateMesh();
     }
 
-    private void GenerateMesh()
-    {
-        // Create the actual Unity mesh object
-        mesh.vertices = vertices;
-        mesh.triangles = triangles;
-        Debug.Log(triangles.Length / 3);
-        mesh.RecalculateNormals();
 
-        meshFilter.mesh = mesh;
+
+    private void CreateChunks(Vector3Int[] trianglesData, Vector3[] verticesData)
+    {
+        int trianglesPerChunk = nbSubdivision * nbSubdivision;
+        vertices = verticesData;
+
+        PlanetChunk chunk;
+        FacesAndEdgesList tempList = new FacesAndEdgesList();
+        for (int i = 0; i < trianglesData.Length; i++)
+        {
+            tempList.Add(trianglesData[i]);
+
+            if (i % trianglesPerChunk == trianglesPerChunk - 1)
+            {
+                chunk = Instantiate(PlanetChunkPrefab, gameObject.transform);
+                chunk.transform.parent = gameObject.transform;
+                chunk.material = material;
+                chunk.SetInitialMeshData(tempList, verticesData);
+                tempList.Clear();
+            }
+
+        }
+
     }
 }

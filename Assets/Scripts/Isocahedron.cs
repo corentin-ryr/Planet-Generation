@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using UnityEngine;
 using System;
-using Geometry;
 using System.Linq;
 using UnityEngine.Rendering;
 
@@ -46,7 +45,7 @@ public class Isocahedron
     {
         if (request.hasError)
         {
-            Debug.Log("GPU readback error detected.");
+            UnityEngine.Debug.Log("GPU readback error detected.");
             return;
         }
         if (whichArray == 0)
@@ -56,6 +55,13 @@ public class Isocahedron
         else if (whichArray == 1)
         {
             triangles_array = request.GetData<Vector3Int>().ToArray();
+
+            faces.Clear(); //Clears edges too
+            foreach (Vector3Int item in triangles_array) //It updates the edges at the same time
+            {
+                faces.Add(item);
+            }
+
         }
         buffer.Dispose();
 

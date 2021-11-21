@@ -1,15 +1,15 @@
 using System.Collections.Generic;
+using System.Collections;
 using UnityEngine;
 using Geometry;
 
-public class NoDuplicatesList : List<Vector2Int>
+public class NoDuplicatesList : HashSet<Edge>
 {
     public NoDuplicatesList() : base() { }
-    public NoDuplicatesList(Vector2Int[] array) : base(array) { }
 
-    public new void Add(Vector2Int item)
+    public new void Add(Edge item)
     {
-        if (!Contains(item) && !Contains(new Vector2Int(item.y, item.x)))
+        if (!Contains(item) && !(item.Y == item.X))
             base.Add(item);
     }
 }
@@ -29,9 +29,9 @@ public class FacesAndEdgesList : List<Vector3Int>
         if (!Contains(triangle))
         {
             base.Add(triangle);
-            edges.Add(new Vector2Int(triangle.x, triangle.y));
-            edges.Add(new Vector2Int(triangle.y, triangle.z));
-            edges.Add(new Vector2Int(triangle.z, triangle.x));
+            edges.Add(new Edge(triangle.x, triangle.y));
+            edges.Add(new Edge(triangle.y, triangle.z));
+            edges.Add(new Edge(triangle.z, triangle.x));
         }
     }
 
