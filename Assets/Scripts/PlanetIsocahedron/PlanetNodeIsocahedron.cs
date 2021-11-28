@@ -55,13 +55,8 @@ public class PlanetNodeIsocahedron : MonoBehaviour
         else
         {
             //Create and render the mesh for the chunk.
-            // Isocahedron Sphere = new Isocahedron(nbSubdivision, radius, triangulationShader, CreateMesh);
-            // Sphere.SubdivideFace(initialVertices);
-
-            mesh.vertices = initialVertices;
-            mesh.triangles = new int[] { 2, 1, 0 };
-
-            RefreshMesh(true);
+            Isocahedron Sphere = new Isocahedron(nbSubdivision, radius, triangulationShader, CreateMesh);
+            Sphere.SubdivideFace(initialVertices);
 
         }
     }
@@ -104,27 +99,27 @@ public class PlanetNodeIsocahedron : MonoBehaviour
 
     }
 
+
     private void InstantiateNode()
     {
-        Vector3[] childrenPositions = getChildrenPosition();
+        Vector3[] childrenVertices = getChildrenVertices();
 
         for (int i = 0; i < 4; i++)
         {
-            Quaternion upsideDown = i == 3 ? Quaternion.Euler(0, 0, 180) : Quaternion.identity;
-            PlanetNodeIsocahedron node = Instantiate(planetNodePrefab, gameObject.transform.position, gameObject.transform.rotation * Quaternion.LookRotation(childrenPositions[i]) * upsideDown);
+            PlanetNodeIsocahedron node = Instantiate(planetNodePrefab);
             node.transform.parent = gameObject.transform;
             node.planetNodePrefab = planetNodePrefab;
             node.segmentationLevel = segmentationLevel + 1;
 
-            float a = 0.5f;
-            float h = 0.5f;
-            float dMiddle = childrenPositions[i].magnitude;
-            node.initialVertices = new Vector3[] {
-                new Vector3(-a / 2, -h / 3, dMiddle).normalized * radius,
-                new Vector3(0, 2 * h / 3, dMiddle).normalized * radius,
-                new Vector3(a / 2, -h / 3, dMiddle).normalized * radius
-            };
+            Quaternion upsideDown = i == 3 ? Quaternion.Euler(0, 0, 180) : Quaternion.identity;
+            Quaternion rotation = Quaternion.LookRotation((childrenVertices[i * 3] + childrenVertices[i * 3 + 1] + childrenVertices[i * 3 + 2] / 3)) * upsideDown;
+            node.transform.localRotation = rotation;
 
+            node.initialVertices = new Vector3[] {
+                Quaternion.Inverse(rotation) * childrenVertices[i * 3],
+                Quaternion.Inverse(rotation) * childrenVertices[i * 3 + 1],
+                Quaternion.Inverse(rotation) * childrenVertices[i * 3 + 2]
+            };
 
 
             childrenNodes[i] = node;
@@ -132,9 +127,10 @@ public class PlanetNodeIsocahedron : MonoBehaviour
 
     }
 
-    public Vector3[] getChildrenPosition()
+
+    public Vector3[] getChildrenVertices()
     {
-        Vector3[] positions = new Vector3[4 * 3];
+        Vector3[] vertices = new Vector3[4 * 3];
 
         Vector3 a = (initialVertices[0] + initialVertices[1]) / 2;
         Vector3 b = (initialVertices[1] + initialVertices[2]) / 2;
@@ -143,15 +139,24 @@ public class PlanetNodeIsocahedron : MonoBehaviour
         b = b * radius / b.magnitude;
         c = c * radius / c.magnitude;
 
-        positions[0] = (initialVertices[0] + a + c) / 3;
-        positions[1] = (a + initialVertices[1] + b) / 3;
-        positions[2] = (b + initialVertices[2] + c) / 3;
-        positions[3] = (a + b + c) / 3;
+        vertices[0] = initialVertices[0];
+        vertices[1] = a;
+        vertices[2] = c;
 
-        return positions;
+        vertices[3] = a;
+        vertices[4] = initialVertices[1];
+        vertices[5] = b;
+
+        vertices[6] = c;
+        vertices[7] = b;
+        vertices[8] = initialVertices[2];
+
+        vertices[9] = a;
+        vertices[10] = b;
+        vertices[11] = c;
+
+        return vertices;
+
     }
-
-
-
 
 }
