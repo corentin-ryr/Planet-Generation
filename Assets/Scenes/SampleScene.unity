@@ -38,7 +38,7 @@ RenderSettings:
   m_ReflectionIntensity: 1
   m_CustomReflection: {fileID: 0}
   m_Sun: {fileID: 705507994}
-  m_IndirectSpecularColor: {r: 0.44657898, g: 0.4964133, b: 0.5748178, a: 1}
+  m_IndirectSpecularColor: {r: 0.4465791, g: 0.4964133, b: 0.57481784, a: 1}
   m_UseRadianceAmbientProbe: 0
 --- !u!157 &3
 LightmapSettings:
@@ -134,7 +134,7 @@ GameObject:
   - component: {fileID: 359213009}
   - component: {fileID: 359213008}
   m_Layer: 0
-  m_Name: Planet
+  m_Name: Planet Isocahedron
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -152,12 +152,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 79f63dd95583f96c9a343e9ae75ff64a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  nbSubdivision: 15
+  nbSubdivision: 30
   radius: 1
   material: {fileID: 2100000, guid: 07bf5f987ebc0d3dfb6675ebd776d68f, type: 2}
   shapeShader: {fileID: 0}
   triangulationShader: {fileID: 7200000, guid: c9fedb8a04a18d2349241afde60087c9, type: 3}
-  PlanetChunkPrefab: {fileID: 3371960136270719269, guid: 3dfa264fee343c3e1bb46693ac842138,
+  planetNodePrefab: {fileID: -6332124679040301797, guid: f3f1e6fa9b35da426b5b9fbdebbcb338,
     type: 3}
 --- !u!4 &359213009
 Transform:

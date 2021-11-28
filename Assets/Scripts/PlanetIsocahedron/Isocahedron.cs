@@ -1,5 +1,4 @@
-﻿using System.Collections;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 using System;
 using System.Linq;
@@ -31,14 +30,23 @@ public class Isocahedron
         this.radius = radius;
         this.callback = callback;
         this.computeShaderSubdivideEdges = computeShaderSubdivideEdges;
+        edges = faces.getEdges();
     }
 
     public void CreateSphere()
     {
-        edges = faces.getEdges();
+        
         CreateVertices(); // Creates only the points (vertices)
         TriangulateVertices(); // Create the faces, aka the triangles between the points
         RefineSphereGPU(nbSubdivision); // Subdivide every face by adding new points and triangulating them
+    }
+
+    public void SubdivideFace(Vector3[] verticesArray)
+    {
+        vertices = new List<Vector3>(verticesArray);
+        faces.Add(new Vector3Int(2, 1, 0));
+
+        RefineSphereGPU(nbSubdivision);
     }
 
     private void OnCompleteReadback(AsyncGPUReadbackRequest request, int whichArray, ref ComputeBuffer buffer)
