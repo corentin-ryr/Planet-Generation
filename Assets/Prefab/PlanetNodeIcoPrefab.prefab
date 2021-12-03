@@ -44,6 +44,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   segmentationLevel: 0
+  initialVertices: []
+  radius: 1
   planetNodePrefab: {fileID: 0}
   triangulationShader: {fileID: 7200000, guid: c9fedb8a04a18d2349241afde60087c9, type: 3}
   material: {fileID: 2100000, guid: 07bf5f987ebc0d3dfb6675ebd776d68f, type: 2}

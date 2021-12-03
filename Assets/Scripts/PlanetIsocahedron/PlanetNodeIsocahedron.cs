@@ -1,20 +1,18 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
-using System.Linq;
-using System;
 
 public class PlanetNodeIsocahedron : MonoBehaviour
 {
     // LOD information ===============
     public int segmentationLevel = 0;
 
+    public float[] detailLevels;
+
     // 0: bottom left, 1: top, 2: bottom right
     public Vector3[] initialVertices;
     private int nbSubdivision = 10;
-    //Distance of the center of the triangle to the center of the sphere.
-    private float radius = 1f;
-    private float dMiddle;
+
+    public float radius = 1f;
+    // private float dMiddle;
 
 
     //Set in the prefab ============
@@ -22,6 +20,7 @@ public class PlanetNodeIsocahedron : MonoBehaviour
     public ComputeShader triangulationShader;
 
 
+    // Next children in the quadtree
     private PlanetNodeIsocahedron[] childrenNodes = new PlanetNodeIsocahedron[4];
 
     // Mesh data =====================
@@ -30,6 +29,8 @@ public class PlanetNodeIsocahedron : MonoBehaviour
     private Mesh mesh;
     public Material material;
 
+    // Player ============================
+    public Player player;
 
     void Start()
     {
@@ -37,33 +38,71 @@ public class PlanetNodeIsocahedron : MonoBehaviour
         meshRenderer = gameObject.AddComponent(typeof(MeshRenderer)) as MeshRenderer;
         meshRenderer.material = material;
 
-        mesh = new Mesh();
-
         CheckAndSubdivide();
     }
 
 
 
-    private void CheckAndSubdivide()
+    public void CheckAndSubdivide()
     {
         if (ShouldSubdivide())
         {
             //Create the nodes if they are not yet created and run their check and subdivide function
             RefreshMesh(false);
-            InstantiateNode();
+            if (childrenNodes[0] == null)
+            {
+                InstantiateNode();
+            }
+            else
+            {
+                foreach (PlanetNodeIsocahedron node in childrenNodes)
+                {
+                    node.gameObject.SetActive(true);
+                    node.CheckAndSubdivide();
+                }
+            }
         }
         else
         {
             //Create and render the mesh for the chunk.
-            Isocahedron Sphere = new Isocahedron(nbSubdivision, radius, triangulationShader, CreateMesh);
-            Sphere.SubdivideFace(initialVertices);
+            if (mesh == null)
+            {
+                mesh = new Mesh();
+
+                Isocahedron Sphere = new Isocahedron(nbSubdivision, radius, triangulationShader, CreateMesh);
+                Sphere.SubdivideFace(initialVertices);
+            }
+            else
+            {
+                RefreshMesh(true);
+            }
+
+
+            if (childrenNodes[0] != null)
+            {
+                foreach (PlanetNodeIsocahedron node in childrenNodes)
+                {
+                    node.gameObject.SetActive(false);
+                }
+            }
+
 
         }
     }
 
     private bool ShouldSubdivide()
     {
-        return segmentationLevel < 1;
+        float minAngle = 180;
+        foreach (Vector3 vertex in initialVertices)
+        {
+            minAngle = Mathf.Min(minAngle, Quaternion.Angle(Quaternion.LookRotation(transform.TransformPoint(vertex)), Quaternion.LookRotation(player.transform.position)));
+        }
+
+        if (segmentationLevel < detailLevels.Length && minAngle < detailLevels[segmentationLevel])
+        {
+            return true;
+        }
+        return false;
     }
 
     private void CreateMesh(Vector3Int[] trianglesV3, Vector3[] vertices)
@@ -110,6 +149,10 @@ public class PlanetNodeIsocahedron : MonoBehaviour
             node.transform.parent = gameObject.transform;
             node.planetNodePrefab = planetNodePrefab;
             node.segmentationLevel = segmentationLevel + 1;
+            node.radius = radius;
+            node.player = player;
+            node.detailLevels = detailLevels;
+
 
             Quaternion upsideDown = i == 3 ? Quaternion.Euler(0, 0, 180) : Quaternion.identity;
             Quaternion rotation = Quaternion.LookRotation((childrenVertices[i * 3] + childrenVertices[i * 3 + 1] + childrenVertices[i * 3 + 2] / 3)) * upsideDown;
@@ -135,9 +178,9 @@ public class PlanetNodeIsocahedron : MonoBehaviour
         Vector3 a = (initialVertices[0] + initialVertices[1]) / 2;
         Vector3 b = (initialVertices[1] + initialVertices[2]) / 2;
         Vector3 c = (initialVertices[2] + initialVertices[0]) / 2;
-        a = a * radius / a.magnitude;
-        b = b * radius / b.magnitude;
-        c = c * radius / c.magnitude;
+        a = a / a.magnitude;
+        b = b / b.magnitude;
+        c = c / c.magnitude;
 
         vertices[0] = initialVertices[0];
         vertices[1] = a;

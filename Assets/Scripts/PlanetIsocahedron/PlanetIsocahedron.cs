@@ -7,49 +7,40 @@ public class PlanetIsocahedron : MonoBehaviour
     [Range(1, 70)]
     public int nbSubdivision = 1;
 
-    [Range(1f, 50f)]
+    [Min(1f)]
     public float radius = 1f;
 
-    // public Shader sphereShader;
-    public Material material;
-    public Shader shapeShader;
-    public ComputeShader triangulationShader;
+    public float[] detailLevels;
+
+
+    // Children ==============================
     public PlanetNodeIsocahedron planetNodePrefab;
-
-    //Mesh Data =======================================================
-    private MeshFilter meshFilter;
-    private MeshRenderer meshRenderer;
-    private Mesh mesh;
-
-    private int[] triangles;
-    private Vector3[] vertices;
-
     private List<PlanetNodeIsocahedron> nodes = new List<PlanetNodeIsocahedron>();
 
+    // Ref to the player to compute distance =========
+    public Player player;
+    private Vector3 previousPosition;
 
     // Start is called before the first frame update
     void Start()
     {
-        // Isocahedron Sphere = new Isocahedron(nbSubdivision, radius, triangulationShader, CreateChunks);
-        // Sphere.CreateSphere();
-
         CreateNodes();
+        previousPosition = player.transform.position;
     }
 
+    void Update() {
 
-    void UpdateMeshData(Vector3Int[] trianglesData, Vector3[] verticesData)
-    {
-        int verticesPerChunk = nbSubdivision * nbSubdivision;
-        vertices = verticesData;
-
-        triangles = new int[trianglesData.Length * 3];
-        for (int i = 0; i < trianglesData.Length; i++)
+        if ((previousPosition - player.transform.position).magnitude > 10)
         {
-            triangles[i * 3] = trianglesData[i].x;
-            triangles[i * 3 + 1] = trianglesData[i].y;
-            triangles[i * 3 + 2] = trianglesData[i].z;
+            RefreshLOD();
         }
+    }
 
+    private void RefreshLOD() {
+        foreach (PlanetNodeIsocahedron node in nodes)
+        {
+            node.CheckAndSubdivide();
+        }
     }
 
     private void CreateNodes()
@@ -74,11 +65,14 @@ public class PlanetIsocahedron : MonoBehaviour
         node.transform.parent = gameObject.transform;
         node.planetNodePrefab = planetNodePrefab;
         node.segmentationLevel = 0;
+        node.radius = radius;
+        node.player = player;
+        node.detailLevels = detailLevels;
 
         float a = 2f;
         float h = Mathf.Sqrt(3f);
         float dMiddle = Mathf.Sqrt(3) * (1 + Metrics.PHI) / 3;
-        node.initialVertices = new Vector3[] { new Vector3(-a / 2, -h / 3, dMiddle).normalized * radius, new Vector3(0, 2 * h / 3, dMiddle).normalized * radius, new Vector3(a / 2, -h / 3, dMiddle).normalized * radius };
+        node.initialVertices = new Vector3[] { new Vector3(-a / 2, -h / 3, dMiddle).normalized, new Vector3(0, 2 * h / 3, dMiddle).normalized, new Vector3(a / 2, -h / 3, dMiddle).normalized };
         nodes.Add(node);
     }
 
@@ -141,7 +135,7 @@ public class PlanetIsocahedron : MonoBehaviour
         points.Add(C);
         points.Add(D);
         points.Add(E);
-        
+
         points.Add(K);
         points.Add(L);
         points.Add(M);
@@ -163,4 +157,8 @@ public class PlanetIsocahedron : MonoBehaviour
         return points.ToArray();
 
     }
+
+
 }
+
+
