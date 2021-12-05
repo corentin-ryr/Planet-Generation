@@ -1,5 +1,5 @@
 ﻿// Each #kernel tells which function to compile; you can have many kernels
-#pragma kernel CSMain
+#pragma kernel TerrainGeneration
 
 // struct Crater {
 //     float3 center;
@@ -8,7 +8,7 @@
 
 RWStructuredBuffer<float3> vertices;
 // RWStructuredBuffer<Crater> craters;
-uint numVertices;
+uint nbVertices;
 // float rimWidth;
 // float rimSteepness;
 // float floorHeight;
@@ -16,11 +16,11 @@ uint numVertices;
 float testValue;
 
 [numthreads(512, 1, 1)]
-void CSMain (uint id : SV_DispatchThreadID)
+void TerrainGeneration (uint id : SV_DispatchThreadID)
 {
-    if (id >= numVertices) { return; }
+    if (id >= nbVertices) { return; }
     float3 vertexPos = vertices[id];
-    float craterHeight = 0;
+    // float craterHeight = 0;
 
     vertices[id] = vertices[id] * (1 + sin(vertexPos.y * testValue) * 0.05);
 

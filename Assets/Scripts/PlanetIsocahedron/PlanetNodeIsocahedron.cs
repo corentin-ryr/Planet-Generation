@@ -4,23 +4,21 @@ public class PlanetNodeIsocahedron : MonoBehaviour
 {
     // LOD information ===============
     public int segmentationLevel = 0;
-
     public float[] detailLevels;
+    private int nbSubdivision = 10;
+    public float radius = 1f;
+
 
     // 0: bottom left, 1: top, 2: bottom right
     public Vector3[] initialVertices;
-    private int nbSubdivision = 10;
-
-    public float radius = 1f;
-    // private float dMiddle;
-
+    public PlanetNodeIsocahedron planetNodePrefab;
 
     //Set in the prefab ============
-    public PlanetNodeIsocahedron planetNodePrefab;
     public ComputeShader triangulationShader;
+    public ComputeShader shapeShader;
 
 
-    // Next children in the quadtree
+    // Node children in the quadtree ========
     private PlanetNodeIsocahedron[] childrenNodes = new PlanetNodeIsocahedron[4];
 
     // Mesh data =====================
@@ -28,6 +26,7 @@ public class PlanetNodeIsocahedron : MonoBehaviour
     private MeshRenderer meshRenderer;
     private Mesh mesh;
     public Material material;
+    Isocahedron Sphere;
 
     // Player ============================
     public Player player;
@@ -37,6 +36,8 @@ public class PlanetNodeIsocahedron : MonoBehaviour
         meshFilter = gameObject.AddComponent(typeof(MeshFilter)) as MeshFilter;
         meshRenderer = gameObject.AddComponent(typeof(MeshRenderer)) as MeshRenderer;
         meshRenderer.material = material;
+
+        Sphere = new Isocahedron(nbSubdivision, radius, triangulationShader, shapeShader);
 
         CheckAndSubdivide();
     }
@@ -68,9 +69,8 @@ public class PlanetNodeIsocahedron : MonoBehaviour
             if (mesh == null)
             {
                 mesh = new Mesh();
+                Sphere.SubdivideFace(initialVertices, CreateMesh);
 
-                Isocahedron Sphere = new Isocahedron(nbSubdivision, radius, triangulationShader, CreateMesh);
-                Sphere.SubdivideFace(initialVertices);
             }
             else
             {
@@ -85,8 +85,6 @@ public class PlanetNodeIsocahedron : MonoBehaviour
                     node.gameObject.SetActive(false);
                 }
             }
-
-
         }
     }
 
@@ -105,10 +103,31 @@ public class PlanetNodeIsocahedron : MonoBehaviour
         return false;
     }
 
-    private void CreateMesh(Vector3Int[] trianglesV3, Vector3[] vertices)
+    private void CreateMesh()
     {
-        mesh.vertices = vertices;
+        mesh.vertices = Sphere.vertices.ToArray();
 
+        Vector3Int[] trianglesV3 = Sphere.triangles_array;
+        int[] triangles = new int[trianglesV3.Length * 3];
+        for (int i = 0; i < trianglesV3.Length; i++)
+        {
+            triangles[i * 3] = trianglesV3[i].x;
+            triangles[i * 3 + 1] = trianglesV3[i].y;
+            triangles[i * 3 + 2] = trianglesV3[i].z;
+        }
+        mesh.triangles = triangles;
+
+        mesh.RecalculateNormals();
+
+        RefreshMesh(true);
+        // Sphere.CreateTerrain(UpdateTerrain);
+
+    }
+
+    private void UpdateTerrain()
+    {
+        mesh.vertices = Sphere.vertices.ToArray();
+        Vector3Int[] trianglesV3 = Sphere.triangles_array;
         int[] triangles = new int[trianglesV3.Length * 3];
         for (int i = 0; i < trianglesV3.Length; i++)
         {

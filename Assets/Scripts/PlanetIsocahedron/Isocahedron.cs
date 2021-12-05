@@ -12,41 +12,52 @@ public class Isocahedron
     private float radius;
     private int nbSubdivision;
 
-    private ComputeShader computeShaderSubdivideEdges;
+    private ComputeShader subdivisionShader;
+    private ComputeShader shapeShader;
 
     //Elements of the unity mesh
-    private List<Vector3> vertices = new List<Vector3>();
+    public List<Vector3> vertices = new List<Vector3>();
     private FacesAndEdgesList faces = new FacesAndEdgesList();
-    private Vector3Int[] triangles_array = new Vector3Int[0];
+    public Vector3Int[] triangles_array = new Vector3Int[0];
     private NoDuplicatesList edges;
 
-    System.Action<Vector3Int[], Vector3[]> callback;
+    // System.Action<Vector3Int[], Vector3[]> callback;
+    System.Action callback;
 
     #endregion
 
-    public Isocahedron(int nbSubdivision, float radius, ComputeShader computeShaderSubdivideEdges, System.Action<Vector3Int[], Vector3[]> callback)
+    public Isocahedron(int nbSubdivision, float radius, ComputeShader subdivisionShader, ComputeShader shapeShader)
     {
         this.nbSubdivision = nbSubdivision;
         this.radius = radius;
-        this.callback = callback;
-        this.computeShaderSubdivideEdges = computeShaderSubdivideEdges;
+        this.subdivisionShader = subdivisionShader;
+        this.shapeShader = shapeShader;
         edges = faces.getEdges();
     }
 
     public void CreateSphere()
     {
-        
         CreateVertices(); // Creates only the points (vertices)
         TriangulateVertices(); // Create the faces, aka the triangles between the points
         RefineSphereGPU(nbSubdivision); // Subdivide every face by adding new points and triangulating them
     }
 
-    public void SubdivideFace(Vector3[] verticesArray)
+    public void SubdivideFace(Vector3[] initialVerticesArray, System.Action callback)
     {
-        vertices = new List<Vector3>(verticesArray);
+        this.callback = callback;
+
+        vertices = new List<Vector3>(initialVerticesArray);
         faces.Add(new Vector3Int(2, 1, 0));
 
         RefineSphereGPU(nbSubdivision);
+    }
+
+    public void CreateTerrain(System.Action callback)
+    {
+        this.callback = callback;
+
+        TerrainGenerationShader();
+
     }
 
     private void OnCompleteReadback(AsyncGPUReadbackRequest request, int whichArray, ref ComputeBuffer buffer)
@@ -59,6 +70,7 @@ public class Isocahedron
         if (whichArray == 0)
         {
             vertices = request.GetData<Vector3>().ToList<Vector3>();
+
         }
         else if (whichArray == 1)
         {
@@ -73,8 +85,7 @@ public class Isocahedron
         }
         buffer.Dispose();
 
-        callback(triangles_array, vertices.ToArray());
-        return;
+        callback();
     }
 
     #region Mesh generation
@@ -135,26 +146,26 @@ public class Isocahedron
 
     private void RefineSphereGPU(int nbSubdivision)
     {
-        int kernelSubdivide = computeShaderSubdivideEdges.FindKernel("SubdivideEdges");
-        int kernelTriangulate = computeShaderSubdivideEdges.FindKernel("CreateFaces");
+        int kernelSubdivide = subdivisionShader.FindKernel("SubdivideEdges");
+        int kernelTriangulate = subdivisionShader.FindKernel("CreateFaces");
 
         // Send the buffers to the Compute Shader ======================================================
         int verticesBufferLength = vertices.Count + (nbSubdivision - 1) * edges.Count + faces.Count * (nbSubdivision - 2) * (nbSubdivision - 1) / 2;
         Vector3[] verticesArray = vertices.ToArray();
         Array.Resize(ref verticesArray, verticesBufferLength);
-        ComputeBuffer verticesBuffer = ComputeHelper.CreateAndSetBuffer(verticesArray, computeShaderSubdivideEdges, "vertices", kernelSubdivide);
-        computeShaderSubdivideEdges.SetBuffer(kernelTriangulate, "vertices", verticesBuffer);
+        ComputeBuffer verticesBuffer = ComputeHelper.CreateAndSetBuffer(verticesArray, subdivisionShader, "vertices", kernelSubdivide);
+        subdivisionShader.SetBuffer(kernelTriangulate, "vertices", verticesBuffer);
 
-        ComputeBuffer edgesBuffer = ComputeHelper.CreateAndSetBuffer(edges.ToArray(), computeShaderSubdivideEdges, "edges", kernelSubdivide);
+        ComputeBuffer edgesBuffer = ComputeHelper.CreateAndSetBuffer(edges.ToArray(), subdivisionShader, "edges", kernelSubdivide);
 
         int lenghtKeys = edges.Count + faces.Count * (nbSubdivision - 1);
         int[] keysArray = new int[lenghtKeys];
-        ComputeBuffer keysBuffer = ComputeHelper.CreateAndSetBuffer(keysArray, computeShaderSubdivideEdges, "keys", kernelSubdivide);
-        computeShaderSubdivideEdges.SetBuffer(kernelTriangulate, "keys", keysBuffer);
+        ComputeBuffer keysBuffer = ComputeHelper.CreateAndSetBuffer(keysArray, subdivisionShader, "keys", kernelSubdivide);
+        subdivisionShader.SetBuffer(kernelTriangulate, "keys", keysBuffer);
 
         int[] cacheArray = new int[lenghtKeys * (nbSubdivision + 1)];
-        ComputeBuffer cacheBuffer = ComputeHelper.CreateAndSetBuffer(cacheArray, computeShaderSubdivideEdges, "cache", kernelSubdivide);
-        computeShaderSubdivideEdges.SetBuffer(kernelTriangulate, "cache", cacheBuffer);
+        ComputeBuffer cacheBuffer = ComputeHelper.CreateAndSetBuffer(cacheArray, subdivisionShader, "cache", kernelSubdivide);
+        subdivisionShader.SetBuffer(kernelTriangulate, "cache", cacheBuffer);
 
         Vector3Int[] trianglesArray = new Vector3Int[faces.Count * nbSubdivision * nbSubdivision];
         for (int i = 0; i < trianglesArray.Length; i++)
@@ -162,18 +173,18 @@ public class Isocahedron
             if (i % (nbSubdivision * nbSubdivision) == 0) { trianglesArray[i] = faces[i / (nbSubdivision * nbSubdivision)]; }
             else { trianglesArray[i] = new Vector3Int(0, 0, 0); }
         }
-        ComputeBuffer trianglesBuffer = ComputeHelper.CreateAndSetBuffer(trianglesArray, computeShaderSubdivideEdges, "triangles", kernelTriangulate);
+        ComputeBuffer trianglesBuffer = ComputeHelper.CreateAndSetBuffer(trianglesArray, subdivisionShader, "triangles", kernelTriangulate);
 
         // Set the int and float values ==================================================================
-        computeShaderSubdivideEdges.SetInt("nbVertices", vertices.Count);
-        computeShaderSubdivideEdges.SetInt("nbEdges", edges.Count);
-        computeShaderSubdivideEdges.SetInt("nbFaces", faces.Count);
-        computeShaderSubdivideEdges.SetInt("nbSubdivision", nbSubdivision);
-        computeShaderSubdivideEdges.SetFloat("radius", radius);
+        subdivisionShader.SetInt("nbVertices", vertices.Count);
+        subdivisionShader.SetInt("nbEdges", edges.Count);
+        subdivisionShader.SetInt("nbFaces", faces.Count);
+        subdivisionShader.SetInt("nbSubdivision", nbSubdivision);
+        subdivisionShader.SetFloat("radius", radius);
 
         // Launch the computation ========================================================================
-        ComputeHelper.Run(computeShaderSubdivideEdges, edges.Count, 1, 1, kernelSubdivide);
-        ComputeHelper.Run(computeShaderSubdivideEdges, faces.Count, 1, 1, kernelTriangulate);
+        ComputeHelper.Run(subdivisionShader, edges.Count, 1, 1, kernelSubdivide);
+        ComputeHelper.Run(subdivisionShader, faces.Count, 1, 1, kernelTriangulate);
 
         // Retrieve the data =============================================================================
         AsyncGPUReadback.Request(verticesBuffer, request => OnCompleteReadback(request, 0, ref verticesBuffer));
@@ -186,30 +197,29 @@ public class Isocahedron
     }
     #endregion
 
-    #region Gizmos
 
-    // void OnDrawGizmos()
-    // {
-    //     if (vertices.Count != 0)
-    //     {
-    //         Gizmos.color = Color.gray;
 
-    //         foreach (var vertex in vertices)
-    //         {
-    //             Gizmos.DrawSphere(vertex, 0.05f);
-    //         }
+    #region Terrain generation
 
-    //         Gizmos.color = Color.yellow;
-    //         Gizmos.DrawSphere(vertices[faces[faceNumberDebug].x], 0.1f);
-    //         Gizmos.color = Color.green;
-    //         Gizmos.DrawSphere(vertices[faces[faceNumberDebug].y], 0.1f);
-    //         Gizmos.color = Color.green;
-    //         Gizmos.DrawSphere(vertices[faces[faceNumberDebug].z], 0.1f);
+    private void TerrainGenerationShader()
+    {
+        int kernelTerrainGeneration = shapeShader.FindKernel("TerrainGeneration");
 
-    //     }
+        // Send the buffers to the Compute Shader ======================================================
+        Vector3[] verticesArray = vertices.ToArray();
+        ComputeBuffer verticesBuffer = ComputeHelper.CreateAndSetBuffer(verticesArray, shapeShader, "vertices", kernelTerrainGeneration);
+        shapeShader.SetBuffer(kernelTerrainGeneration, "vertices", verticesBuffer);
 
-    // }
+        // Set the int and float values ==================================================================
+        shapeShader.SetInt("nbVertices", vertices.Count);
+        shapeShader.SetFloat("testValue", 5f);
+
+        // Launch the computation ========================================================================
+        ComputeHelper.Run(shapeShader, vertices.Count, 1, 1, kernelTerrainGeneration);
+
+        // Retrieve the data =============================================================================
+        AsyncGPUReadback.Request(verticesBuffer, request => OnCompleteReadback(request, 0, ref verticesBuffer));
+    }
 
     #endregion
-
 }
