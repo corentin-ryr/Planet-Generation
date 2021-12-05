@@ -93,8 +93,9 @@ public class PlanetNodeIsocahedron : MonoBehaviour
         float minAngle = 180;
         foreach (Vector3 vertex in initialVertices)
         {
-            minAngle = Mathf.Min(minAngle, Quaternion.Angle(Quaternion.LookRotation(transform.TransformPoint(vertex)), Quaternion.LookRotation(player.transform.position)));
+            minAngle = Mathf.Min(minAngle, Quaternion.Angle(Quaternion.LookRotation(vertex), Quaternion.LookRotation(player.transform.position)));
         }
+        Debug.Log(minAngle);
 
         if (segmentationLevel < detailLevels.Length && minAngle < detailLevels[segmentationLevel])
         {
@@ -120,7 +121,7 @@ public class PlanetNodeIsocahedron : MonoBehaviour
         mesh.RecalculateNormals();
 
         RefreshMesh(true);
-        // Sphere.CreateTerrain(UpdateTerrain);
+        Sphere.CreateTerrain(UpdateTerrain);
 
     }
 
@@ -172,17 +173,11 @@ public class PlanetNodeIsocahedron : MonoBehaviour
             node.player = player;
             node.detailLevels = detailLevels;
 
-
-            Quaternion upsideDown = i == 3 ? Quaternion.Euler(0, 0, 180) : Quaternion.identity;
-            Quaternion rotation = Quaternion.LookRotation((childrenVertices[i * 3] + childrenVertices[i * 3 + 1] + childrenVertices[i * 3 + 2] / 3)) * upsideDown;
-            node.transform.localRotation = rotation;
-
             node.initialVertices = new Vector3[] {
-                Quaternion.Inverse(rotation) * childrenVertices[i * 3],
-                Quaternion.Inverse(rotation) * childrenVertices[i * 3 + 1],
-                Quaternion.Inverse(rotation) * childrenVertices[i * 3 + 2]
+                childrenVertices[i * 3],
+                childrenVertices[i * 3 + 1],
+                childrenVertices[i * 3 + 2]
             };
-
 
             childrenNodes[i] = node;
         }
@@ -197,9 +192,9 @@ public class PlanetNodeIsocahedron : MonoBehaviour
         Vector3 a = (initialVertices[0] + initialVertices[1]) / 2;
         Vector3 b = (initialVertices[1] + initialVertices[2]) / 2;
         Vector3 c = (initialVertices[2] + initialVertices[0]) / 2;
-        a = a / a.magnitude;
-        b = b / b.magnitude;
-        c = c / c.magnitude;
+        a = a / a.magnitude * radius;
+        b = b / b.magnitude * radius;
+        c = c / c.magnitude * radius;
 
         vertices[0] = initialVertices[0];
         vertices[1] = a;

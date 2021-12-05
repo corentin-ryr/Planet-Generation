@@ -33,6 +33,7 @@ public class PlanetIsocahedron : MonoBehaviour
         if ((previousPosition - player.transform.position).magnitude > 10)
         {
             RefreshLOD();
+            previousPosition = player.transform.position;
         }
     }
 
@@ -45,23 +46,19 @@ public class PlanetIsocahedron : MonoBehaviour
 
     private void CreateNodes()
     {
-        Vector3[] positions = NodesPositions();
+        (Vector3[] vertices, Vector3Int[] faces) = NodesPositions2();
 
         int i = 0;
-        for (; i < 10; i++) //Create the six faces of the cube
+        for (; i < faces.Length; i++) //Create the six faces of the cube
         {
-            InstantiateNode(Quaternion.LookRotation(positions[i]));
-        }
-
-        for (; i < 20; i++) //Create the six faces of the cube
-        {
-            InstantiateNode(Quaternion.LookRotation(positions[i]) * Quaternion.Euler(0, 0, 180));
+            Vector3[] initialVertices = new Vector3[] { vertices[faces[i].z].normalized * radius, vertices[faces[i].y].normalized * radius, vertices[faces[i].x].normalized * radius };
+            InstantiateNode(initialVertices);
         }
     }
 
-    private void InstantiateNode(Quaternion quaternion)
+    private void InstantiateNode(Vector3[] initialVertices)
     {
-        PlanetNodeIsocahedron node = Instantiate(planetNodePrefab, gameObject.transform.position, quaternion);
+        PlanetNodeIsocahedron node = Instantiate(planetNodePrefab);
         node.transform.parent = gameObject.transform;
         node.planetNodePrefab = planetNodePrefab;
         node.segmentationLevel = 0;
@@ -69,10 +66,7 @@ public class PlanetIsocahedron : MonoBehaviour
         node.player = player;
         node.detailLevels = detailLevels;
 
-        float a = 2f;
-        float h = Mathf.Sqrt(3f);
-        float dMiddle = Mathf.Sqrt(3) * (1 + Metrics.PHI) / 3;
-        node.initialVertices = new Vector3[] { new Vector3(-a / 2, -h / 3, dMiddle).normalized, new Vector3(0, 2 * h / 3, dMiddle).normalized, new Vector3(a / 2, -h / 3, dMiddle).normalized };
+        node.initialVertices = initialVertices;
         nodes.Add(node);
     }
 

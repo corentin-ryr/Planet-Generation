@@ -212,7 +212,7 @@ public class Isocahedron
 
         // Set the int and float values ==================================================================
         shapeShader.SetInt("nbVertices", vertices.Count);
-        shapeShader.SetFloat("testValue", 5f);
+        shapeShader.SetFloat("testValue", 0.1f);
 
         // Launch the computation ========================================================================
         ComputeHelper.Run(shapeShader, vertices.Count, 1, 1, kernelTerrainGeneration);
